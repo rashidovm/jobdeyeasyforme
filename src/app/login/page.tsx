@@ -22,20 +22,30 @@ function LoginForm() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
-      if (data.user) router.push(nextPath);
+      if (data.user) routeByRole(data.user.id);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, nextPath]);
+
+  const routeByRole = async (userId: string) => {
+    const { data: roleRow } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+    if (roleRow && (roleRow.role === 'admin' || roleRow.role === 'staff')) {
+      router.push('/admin');
+    } else {
+      router.push(nextPath);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setError(error.message);
       setLoading(false);
-    } else {
-      router.push(nextPath);
+    } else if (data.user) {
+      routeByRole(data.user.id);
     }
   };
 

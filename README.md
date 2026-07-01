@@ -52,3 +52,33 @@ The name and chosen plan are passed through `supabase.auth.signUp({ options: { d
 - CV **file upload** in onboarding is captured (filename) but not yet stored to Supabase
   Storage — `original_cv_url` stays `null` for now.
 - Consider upgrading `next` past `14.1.0` before public launch (security advisories).
+
+---
+
+## Pass 1 — Team (admin + staff)
+
+### One-time Supabase setup
+1. Run **`supabase_team_setup.sql`** in the SQL Editor (after the schema + auth-setup files). It adds roles, staff work columns, and the access rules.
+2. Sign up once through the app with **your own email**, confirm it, then run this line in SQL Editor (replace the email) and log out/in:
+   ```sql
+   update public.profiles set role = 'admin' where email = 'YOU@EXAMPLE.COM';
+   ```
+
+### New environment variable (Vercel)
+Add one **server-only** variable (do NOT prefix with `NEXT_PUBLIC_`):
+
+| Variable | Where to find it |
+| --- | --- |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API → `service_role` key |
+
+This is used only by the server route that creates staff logins. It is never exposed to the browser. Redeploy after adding it.
+
+### How the team works
+- Log in as admin → you land on **/admin**.
+- **Staff** page: create logins for your team (they can sign in immediately, no email confirmation).
+- **Job postings** page: add jobs (also powers your future public jobs page).
+- **Clients** → open a client → see their onboarding details and **create an application** (pick a job, assign a staff member, set a delivery deadline).
+- Staff open an assigned application, paste the tailored CV / cover-letter links, add "why we picked" notes and correction notes, set status, and **Deliver** — which marks it sent and uses one of the client's monthly applications. If the client is out of applications, delivery is blocked until they top up or upgrade.
+
+### Coming next (not built yet)
+Pass 2: full CV profile + skill tick-boxes. Pass 3: client dashboard countdowns + AI fit-score (Groq). Pass 4: top-ups + public jobs page.

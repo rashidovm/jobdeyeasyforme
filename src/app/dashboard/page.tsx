@@ -37,6 +37,12 @@ export default function DashboardPage() {
         return;
       }
 
+      const { data: roleRow } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      if (roleRow && (roleRow.role === 'admin' || roleRow.role === 'staff')) {
+        router.replace('/admin');
+        return;
+      }
+
       const { data: materials } = await supabase
         .from('client_materials').select('id').eq('user_id', user.id).maybeSingle();
       if (!materials) {
@@ -123,7 +129,7 @@ export default function DashboardPage() {
                 tab === item.id ? 'bg-green text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'
               )}
             >
-              <item.icon className="h-4.5 w-4.5" /> {item.label}
+              <item.icon className="h-4 w-4" /> {item.label}
             </button>
           ))}
         </nav>
@@ -134,7 +140,7 @@ export default function DashboardPage() {
           rel="noopener noreferrer"
           className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-whatsapp hover:brightness-110"
         >
-          <MessageCircle className="h-4.5 w-4.5" /> Message us
+          <MessageCircle className="h-4 w-4" /> Message us
         </a>
 
         <div className="mt-auto">

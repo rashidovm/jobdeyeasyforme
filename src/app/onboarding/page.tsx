@@ -62,6 +62,12 @@ export default function OnboardingPage() {
         return;
       }
 
+      const { data: roleRow } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+      if (roleRow && (roleRow.role === 'admin' || roleRow.role === 'staff')) {
+        router.replace('/admin');
+        return;
+      }
+
       const { data: materials } = await supabase
         .from('client_materials')
         .select('id')

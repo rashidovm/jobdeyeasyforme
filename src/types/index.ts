@@ -15,10 +15,13 @@ export type SubscriptionStatus = 'active' | 'pending' | 'expired' | 'cancelled';
 
 export type ClientOutcome = 'interview' | 'rejected' | 'still_waiting' | 'offer' | null;
 
+export type UserRole = 'client' | 'staff' | 'admin';
+
 export interface Profile {
   id: string;
   full_name: string;
   email: string;
+  role: UserRole;
   whatsapp_number: string | null;
   phone_number: string | null;
   city_state: string | null;
@@ -30,6 +33,7 @@ export interface Profile {
   preferred_salary_max: number | null;
   hidden_skills_notes: string | null;
   contact_cleanup_notes: string | null;
+  created_at?: string;
 }
 
 export interface Subscription {
@@ -68,12 +72,16 @@ export interface Application {
   why_picked: string[];
   status: ApplicationStatus;
   reviewed_by: string | null;
+  assigned_to: string | null;
+  correction_notes: string | null;
+  due_at: string | null;
   check_in_7day_sent: boolean;
   check_in_14day_sent: boolean;
   client_outcome: ClientOutcome;
   created_at: string;
   updated_at: string;
   job_postings?: JobPosting;
+  profiles?: Pick<Profile, 'id' | 'full_name' | 'email'>;
 }
 
 export interface JobPosting {
@@ -85,4 +93,5 @@ export interface JobPosting {
   source_link: string;
   public_teaser: string;
   internal_description: string;
+  created_at?: string;
 }
