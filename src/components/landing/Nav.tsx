@@ -1,80 +1,92 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Menu, X } from 'lucide-react';
+import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
+import { cn } from '@/lib/cn';
+
+const LINKS = [
+  { href: '#how-it-works', label: 'How it works' },
+  { href: '#pricing', label: 'Pricing' },
+  { href: '#faq', label: 'FAQ' },
+];
 
 export default function Nav() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
-    <nav style={{
-      position: 'sticky',
-      top: 0,
-      backgroundColor: 'rgba(250, 248, 243, 0.9)',
-      backdropFilter: 'blur(8px)',
-      borderBottom: '1px solid var(--border)',
-      zIndex: 100,
-      padding: '16px 0',
-    }}>
-      <div style={{
-        maxWidth: '1100px',
-        margin: '0 auto',
-        padding: '0 24px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-            <path d="M16 2C8 2 2 8 2 16C2 24 8 30 16 30C24 30 30 24 30 16C30 8 24 2 16 2ZM16 28C9 28 4 23 4 16C4 9 9 4 16 4C23 4 28 9 28 16C28 23 23 28 16 28Z" fill="var(--green)"/>
-            <path d="M9 16L14 21L23 12" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <circle cx="26" cy="6" r="2" fill="var(--gold)"/>
-          </svg>
-          <span style={{ fontWeight: 800, fontSize: '1.2rem' }}>
-            <span style={{ color: 'var(--green)' }}>Job</span>
-            <span style={{ color: 'var(--gold)' }}>Dey</span>
-            <span style={{ color: 'var(--green)' }}>Easy</span>
-          </span>
-        </div>
+    <header
+      className={cn(
+        'sticky top-0 z-50 border-b transition-colors duration-300',
+        scrolled ? 'border-line bg-cream/85 backdrop-blur-md' : 'border-transparent bg-cream/60 backdrop-blur-sm'
+      )}
+    >
+      <nav className="container-tight flex h-16 items-center justify-between">
+        <Logo />
 
-        <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }} className="nav-links">
-          <a href="#how-it-works" style={{ fontWeight: 500, color: 'var(--dark)' }}>How it works</a>
-          <a href="#pricing" style={{ fontWeight: 500, color: 'var(--dark)' }}>Pricing</a>
-          <a href="#faq" style={{ fontWeight: 500, color: 'var(--dark)' }}>FAQ</a>
-          <Button href="/signup">Start Free Trial</Button>
+        <div className="hidden items-center gap-8 md:flex">
+          {LINKS.map((l) => (
+            <a key={l.href} href={l.href} className="text-sm font-medium link-muted">
+              {l.label}
+            </a>
+          ))}
+          <div className="flex items-center gap-3">
+            <a href="/login" className="text-sm font-semibold link-muted">
+              Log in
+            </a>
+            <Button href="/signup" size="sm">
+              Start free trial
+            </Button>
+          </div>
         </div>
 
         <button
-          className="menu-toggle"
-          onClick={() => setIsOpen(!isOpen)}
-          style={{ display: 'none', fontSize: '1.5rem' }}
-          aria-label="Toggle menu"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-ink md:hidden"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-expanded={open}
         >
-          {isOpen ? '✕' : '☰'}
+          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
-      </div>
+      </nav>
 
-      {isOpen && (
-        <div style={{
-          padding: '16px 24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-          borderBottom: '1px solid var(--border)',
-        }} className="mobile-menu">
-          <a href="#how-it-works" onClick={() => setIsOpen(false)}>How it works</a>
-          <a href="#pricing" onClick={() => setIsOpen(false)}>Pricing</a>
-          <a href="#faq" onClick={() => setIsOpen(false)}>FAQ</a>
-          <Button href="/signup" fullWidth>Start Free Trial</Button>
+      {open && (
+        <div className="border-t border-line bg-cream md:hidden">
+          <div className="container-tight flex flex-col gap-1 py-4">
+            {LINKS.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-2 py-2.5 text-sm font-medium text-ink hover:bg-black/5"
+              >
+                {l.label}
+              </a>
+            ))}
+            <a
+              href="/login"
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-2 py-2.5 text-sm font-medium text-ink hover:bg-black/5"
+            >
+              Log in
+            </a>
+            <div className="pt-2">
+              <Button href="/signup" fullWidth>
+                Start free trial
+              </Button>
+            </div>
+          </div>
         </div>
       )}
-
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .nav-links { display: none !important; }
-          .menu-toggle { display: block !important; }
-        }
-      `}</style>
-    </nav>
+    </header>
   );
 }

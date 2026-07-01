@@ -1,21 +1,15 @@
 import React from 'react';
+import { AlertCircle } from 'lucide-react';
 
 export default function ErrorBox({ message }: { message: string }) {
   if (!message) return null;
   return (
     <div
       role="alert"
-      style={{
-        backgroundColor: '#FEF2F2',
-        border: '1px solid #FECACA',
-        color: '#DC2626',
-        padding: '12px 16px',
-        borderRadius: 'var(--radius-sm)',
-        marginBottom: '16px',
-        fontSize: '0.9rem',
-      }}
+      className="mb-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
     >
-      {message}
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+      <span>{message}</span>
     </div>
   );
 }

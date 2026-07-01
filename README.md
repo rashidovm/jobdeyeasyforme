@@ -1,61 +1,54 @@
-# JobDeyEasy — Phase 1
+# JobDeyEasy
 
-"We do the hard part. You hit Send." — a Next.js 14 (App Router) + Supabase SaaS that finds jobs, prepares a tailored CV, cover letter, and a send-ready email, and delivers them to the client.
+We do the hard part. You hit Send.
+
+A Next.js 14 + Supabase app that sources jobs for Nigerian job seekers and prepares a
+tailored CV, cover letter, and ready-to-send email — delivered on WhatsApp.
 
 ## Tech stack
+- Next.js 14 (App Router) + React 18 + TypeScript
+- Tailwind CSS + lucide-react icons
+- Plus Jakarta Sans (next/font)
+- Supabase (auth + Postgres)
 
-- Next.js 14 (App Router)
-- React 18 + TypeScript
-- Supabase (auth + Postgres + RLS)
-- Plus Jakarta Sans via `next/font`
-- Inline styles + CSS variables (design tokens live in `src/app/globals.css`)
+## Local setup
+1. `npm install`
+2. Copy `.env.local.example` to `.env.local` and fill in your values (see below).
+3. `npm run dev` → http://localhost:3000
 
-## Project structure
+## Environment variables
+Set these three (in `.env.local` locally, and in Vercel → Project → Settings → Environment Variables):
 
-```
-src/
-  app/                     Routes (App Router)
-    layout.tsx             Root layout + global FloatingWhatsApp
-    globals.css            Design tokens (colors, radius, shadows)
-    page.tsx               Marketing homepage
-    privacy/ terms/        Legal placeholder pages
-    login/ signup/         Auth flow
-    onboarding/            CV-upload / survey branches
-    dashboard/             Client dashboard
-  components/
-    ui/                    Reusable primitives (Button, FormField, ErrorBox, Logo, FloatingWhatsApp)
-    landing/               Homepage sections (Nav, Hero, HowItWorks, Pricing, Promises, FAQ, CTAAndFooter)
-  lib/
-    supabase.ts            Supabase client + WhatsApp link helper
-    constants.ts           Plans, FAQs, promises, status map
-  types/
-    index.ts               Shared TypeScript types
-supabase_schema.sql        Run this in the Supabase SQL editor
-```
+| Variable | Example | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` | anon / publishable key — NOT the service_role key |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | `2348012345678` | digits only, no `+`, no leading `0` |
 
-## Getting started (local + testing)
+## Supabase setup (run in order)
+1. Create a Supabase project.
+2. SQL Editor → run **`supabase_schema.sql`** (tables, RLS, launch_slots).
+3. SQL Editor → run **`supabase_auth_setup.sql`** (table grants + the signup trigger).
+4. **Keep email confirmation ON**: Authentication → Providers → Email → "Confirm email" = enabled.
+5. Authentication → URL Configuration:
+   - **Site URL:** `https://your-domain`
+   - **Redirect URLs:** add `https://your-domain/auth/callback`
+     (for local dev also add `http://localhost:3000/auth/callback`)
 
-1. Run the schema: open your Supabase project → SQL Editor → paste and run `supabase_schema.sql`.
-2. In Supabase, go to Authentication → Providers → Email and turn **off** "Confirm email" (so testers can sign in immediately).
-3. Copy `.env.local.example` to `.env.local` and fill in your values:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=your_project_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-   NEXT_PUBLIC_WHATSAPP_NUMBER=2348000000000
-   ```
-4. Install dependencies: `npm install`
-5. Start the dev server: `npm run dev` → http://localhost:3000
-6. Production build check: `npm run build && npm start`
+### Why the trigger?
+Signup no longer writes the profile/subscription from the browser. The
+`handle_new_user()` trigger creates them automatically the moment an auth user is created —
+running as the table owner, so it never hits RLS/permission errors. This is what fixes the
+old "permission denied for table profiles" and lets email confirmation stay on permanently.
+The name and chosen plan are passed through `supabase.auth.signUp({ options: { data: {...} } })`.
 
-## Deploying to Vercel
-
-1. Push this repo to GitHub.
-2. Import it in Vercel.
-3. Add the three `NEXT_PUBLIC_*` environment variables in the Vercel project settings.
+## Deploy (GitHub + Vercel)
+1. Push this folder to a GitHub repo (do **not** commit `node_modules`, `.next`, or `.env.local`).
+2. Import the repo in Vercel.
+3. Add the three environment variables above.
 4. Deploy.
 
-## Known Phase 1 limitations
-
-- CV file upload is captured client-side only; it is **not** yet stored in Supabase Storage (`original_cv_url` stays null by design).
-- Payments are handled manually over WhatsApp (no payment gateway wired in yet).
-- Profile edits are handled manually over WhatsApp.
+## Notes / known Phase-1 limits
+- CV **file upload** in onboarding is captured (filename) but not yet stored to Supabase
+  Storage — `original_cv_url` stays `null` for now.
+- Consider upgrading `next` past `14.1.0` before public launch (security advisories).

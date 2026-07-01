@@ -1,5 +1,6 @@
 import Nav from '@/components/landing/Nav';
 import Hero from '@/components/landing/Hero';
+import TrustStrip from '@/components/landing/TrustStrip';
 import HowItWorks from '@/components/landing/HowItWorks';
 import Pricing from '@/components/landing/Pricing';
 import Promises from '@/components/landing/Promises';
@@ -12,6 +13,7 @@ export default function Home() {
       <Nav />
       <main>
         <Hero />
+        <TrustStrip />
         <HowItWorks />
         <Pricing />
         <Promises />

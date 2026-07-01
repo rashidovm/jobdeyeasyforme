@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useId } from 'react';
+import { cn } from '@/lib/cn';
 
-interface FormFieldProps extends React.InputHTMLAttributes<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement> {
+interface FormFieldProps
+  extends React.InputHTMLAttributes<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement> {
   label: string;
   helperText?: string;
   error?: string;
@@ -17,62 +19,50 @@ export default function FormField({
   as = 'input',
   options,
   id,
+  className,
+  children,
   ...props
 }: FormFieldProps) {
   const generatedId = useId();
   const fieldId = id || generatedId;
 
-  const baseStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '12px 16px',
-    border: `1.5px solid ${error ? '#FECACA' : 'var(--border)'}`,
-    borderRadius: 'var(--radius-sm)',
-    backgroundColor: 'var(--white)',
-    fontSize: '1rem',
-    transition: 'border 0.2s ease',
-    outline: 'none',
-  };
-
-  const focusStyle = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    e.target.style.borderColor = 'var(--green)';
-  };
+  const control = cn(
+    'w-full rounded-xl border bg-white px-4 py-2.5 text-[0.95rem] text-ink placeholder:text-muted/60',
+    'transition-colors outline-none focus:border-green focus:ring-2 focus:ring-green/15',
+    error ? 'border-red-300' : 'border-line',
+    className
+  );
 
   return (
-    <div style={{ marginBottom: '16px', width: '100%' }}>
-      <label
-        htmlFor={fieldId}
-        style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '0.9rem' }}
-      >
+    <div className="mb-4 w-full">
+      <label htmlFor={fieldId} className="mb-1.5 block text-sm font-semibold text-ink">
         {label}
       </label>
+
       {as === 'select' ? (
-        <select
-          id={fieldId}
-          style={baseStyle}
-          onFocus={focusStyle}
-          {...(props as React.SelectHTMLAttributes<HTMLSelectElement>)}
-        >
-          {options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+        <select id={fieldId} className={control} {...(props as React.SelectHTMLAttributes<HTMLSelectElement>)}>
+          {options
+            ? options.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))
+            : children}
         </select>
       ) : as === 'textarea' ? (
         <textarea
           id={fieldId}
-          style={{ ...baseStyle, minHeight: '100px', resize: 'vertical' }}
-          onFocus={focusStyle}
+          className={cn(control, 'min-h-[110px] resize-y')}
           {...(props as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
         />
       ) : (
-        <input
-          id={fieldId}
-          style={baseStyle}
-          onFocus={focusStyle}
-          {...(props as React.InputHTMLAttributes<HTMLInputElement>)}
-        />
+        <input id={fieldId} className={control} {...(props as React.InputHTMLAttributes<HTMLInputElement>)} />
       )}
+
       {error ? (
-        <p style={{ color: '#DC2626', fontSize: '0.8rem', marginTop: '4px' }}>{error}</p>
+        <p className="mt-1.5 text-xs text-red-600">{error}</p>
       ) : helperText ? (
-        <p style={{ color: 'var(--grey)', fontSize: '0.8rem', marginTop: '4px' }}>{helperText}</p>
+        <p className="mt-1.5 text-xs text-muted">{helperText}</p>
       ) : null}
     </div>
   );

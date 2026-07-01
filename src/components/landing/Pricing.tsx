@@ -1,115 +1,104 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
 import { PLANS } from '@/lib/constants';
 import { supabase } from '@/lib/supabase';
 import Button from '@/components/ui/Button';
+import Reveal from '@/components/ui/Reveal';
+import { cn } from '@/lib/cn';
 
 export default function Pricing() {
-  const [spotsLeft, setSpotsLeft] = useState(20);
+  const [spotsLeft, setSpotsLeft] = useState<number | null>(null);
 
   useEffect(() => {
-    async function fetchLaunchSlots() {
+    let active = true;
+    (async () => {
       const { data } = await supabase
         .from('launch_slots')
         .select('filled_count, cap')
         .eq('id', 1)
         .single();
-
-      if (data) {
-        setSpotsLeft(Math.max(0, data.cap - data.filled_count));
-      }
-    }
-    fetchLaunchSlots();
+      if (active && data) setSpotsLeft(Math.max(0, data.cap - data.filled_count));
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
+  const showFounding = spotsLeft === null || spotsLeft > 0;
+
   return (
-    <section id="pricing" style={{ padding: '80px 24px', backgroundColor: 'var(--cream)' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <span style={{ color: 'var(--gold)', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '2px', textTransform: 'uppercase' }}>PRICING</span>
-          <h2 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', marginTop: '8px', letterSpacing: '-0.5px' }}>Simple, honest pricing</h2>
-          <p style={{ color: 'var(--grey)', marginTop: '8px' }}>No hidden fees. Cancel anytime.</p>
-        </div>
+    <section id="pricing" className="bg-cream py-20 md:py-28">
+      <div className="container-tight">
+        <Reveal className="mx-auto max-w-2xl text-center">
+          <span className="eyebrow">Pricing</span>
+          <h2 className="mt-3 text-3xl md:text-4xl">Simple, honest pricing</h2>
+          <p className="mt-4 text-muted">
+            Pick a plan by how many jobs you want us to prepare each month. No hidden fees. Cancel anytime.
+          </p>
+        </Reveal>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '24px',
-          marginBottom: '32px'
-        }} className="pricing-grid">
-          {PLANS.map((plan) => (
-            <div key={plan.id} style={{
-              backgroundColor: 'var(--white)',
-              border: plan.id === 'starter' ? '2px solid var(--green)' : '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              padding: '32px 24px',
-              boxShadow: 'var(--shadow-sm)',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-            }}>
-              {plan.founding20 && spotsLeft > 0 && (
-                <div style={{
-                  position: 'absolute',
-                  top: '-12px',
-                  right: '24px',
-                  backgroundColor: 'var(--gold)',
-                  color: 'white',
-                  padding: '4px 12px',
-                  borderRadius: '50px',
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <span style={{ width: '6px', height: '6px', backgroundColor: 'white', borderRadius: '50%', animation: 'pulse 2s infinite' }}></span>
-                  Founding 20
+        <div className="mt-14 grid items-stretch gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {PLANS.map((plan, i) => {
+            const featured = plan.id === 'starter';
+            return (
+              <Reveal
+                key={plan.id}
+                delay={i * 80}
+                className={cn(
+                  'relative flex h-full flex-col rounded-2xl border bg-white p-7 transition-shadow',
+                  featured ? 'border-green shadow-card ring-1 ring-green/20' : 'border-line shadow-soft hover:shadow-card'
+                )}
+              >
+                {featured && plan.founding20 && showFounding && (
+                  <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-gold px-3 py-1 text-xs font-bold text-white shadow-soft">
+                    <span className="h-1.5 w-1.5 animate-dot rounded-full bg-white" />
+                    Founding 20
+                  </span>
+                )}
+
+                <div>
+                  <h3 className="text-lg font-bold">{plan.name}</h3>
+                  <p className="mt-1 text-sm font-medium text-gold">{plan.bestFor}</p>
                 </div>
-              )}
-              <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>{plan.name}</h3>
-              <div style={{ marginBottom: '16px' }}>
-                <span style={{ fontSize: '2rem', fontWeight: 800 }}>{plan.priceLabel}</span>
-                <span style={{ color: 'var(--grey)', fontSize: '0.9rem' }}>{plan.period}</span>
-              </div>
-              <p style={{ color: 'var(--grey)', fontSize: '0.85rem', marginBottom: '24px', minHeight: '40px' }}>{plan.description}</p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px 0', flexGrow: 1 }}>
-                {plan.features.map((f, i) => (
-                  <li key={i} style={{ display: 'flex', alignItems: 'start', gap: '8px', marginBottom: '12px', fontSize: '0.9rem' }}>
-                    <span style={{ color: 'var(--green)', fontWeight: 700 }}>✓</span> {f}
-                  </li>
-                ))}
-              </ul>
-              <Button href="/signup" variant={plan.id === 'starter' ? 'primary' : 'secondary'} fullWidth>
-                {plan.cta}
-              </Button>
-            </div>
-          ))}
+
+                <div className="mt-5 flex items-baseline gap-1">
+                  <span className="text-4xl font-extrabold tracking-tight">{plan.priceLabel}</span>
+                  {plan.period && <span className="text-sm text-muted">{plan.period}</span>}
+                </div>
+
+                <p className="mt-3 min-h-[48px] text-sm leading-relaxed text-muted">{plan.description}</p>
+
+                <ul className="mt-6 flex-1 space-y-3">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-ink">
+                      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-green-light">
+                        <Check className="h-3 w-3 text-green" strokeWidth={3} />
+                      </span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-7">
+                  <Button href="/signup" variant={featured ? 'primary' : 'secondary'} fullWidth>
+                    {plan.cta}
+                  </Button>
+                </div>
+              </Reveal>
+            );
+          })}
         </div>
 
-        {spotsLeft > 0 && (
-          <div style={{
-            backgroundColor: 'var(--gold-light)',
-            border: '1px solid var(--gold)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '16px',
-            textAlign: 'center',
-            color: 'var(--gold)',
-            fontWeight: 500,
-            fontSize: '0.9rem'
-          }}>
-            🎉 Only {spotsLeft} spots left for the Founding 20 offer! Lock in ₦1,500/month for life.
-          </div>
+        {showFounding && (
+          <Reveal className="mx-auto mt-8 max-w-xl rounded-2xl border border-gold/40 bg-gold-light px-5 py-4 text-center text-sm font-medium text-gold">
+            {spotsLeft === null
+              ? 'Founding 20: the first 20 Starter sign-ups lock ₦1,500/mo for life.'
+              : `Only ${spotsLeft} of 20 Founding spots left — lock ₦1,500/mo for life.`}
+          </Reveal>
         )}
       </div>
-      <style jsx>{`
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.4; }
-          100% { opacity: 1; }
-        }
-      `}</style>
     </section>
   );
 }

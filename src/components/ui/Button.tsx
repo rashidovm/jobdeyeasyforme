@@ -2,80 +2,58 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { cn } from '@/lib/cn';
 
-type Variant = 'primary' | 'secondary' | 'whatsapp';
+type Variant = 'primary' | 'secondary' | 'whatsapp' | 'ghost';
+type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
+  size?: Size;
   href?: string;
   fullWidth?: boolean;
 }
 
-const styles: Record<Variant, React.CSSProperties> = {
-  primary: {
-    backgroundColor: 'var(--green)',
-    color: 'var(--white)',
-    border: 'none',
-  },
-  secondary: {
-    backgroundColor: 'transparent',
-    color: 'var(--green)',
-    border: '2px solid var(--green)',
-  },
-  whatsapp: {
-    backgroundColor: 'var(--whatsapp)',
-    color: 'var(--white)',
-    border: 'none',
-  },
+const base =
+  'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-200 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream ' +
+  'disabled:opacity-60 disabled:pointer-events-none';
+
+const variants: Record<Variant, string> = {
+  primary:
+    'bg-green text-white shadow-soft hover:bg-green-dark hover:shadow-card hover:-translate-y-0.5',
+  secondary:
+    'border-2 border-green text-green bg-transparent hover:bg-green-light hover:-translate-y-0.5',
+  whatsapp:
+    'bg-whatsapp text-white shadow-soft hover:brightness-95 hover:shadow-card hover:-translate-y-0.5',
+  ghost: 'text-ink hover:bg-black/5',
+};
+
+const sizes: Record<Size, string> = {
+  sm: 'px-4 py-2 text-sm',
+  md: 'px-6 py-3 text-[0.95rem]',
+  lg: 'px-7 py-3.5 text-base',
 };
 
 export default function Button({
   children,
   variant = 'primary',
+  size = 'md',
   href,
   fullWidth,
-  style,
+  className,
   ...props
 }: ButtonProps) {
-  const baseStyle: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    padding: '12px 24px',
-    borderRadius: '50px',
-    fontWeight: 600,
-    fontSize: '1rem',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    width: fullWidth ? '100%' : 'auto',
-    ...styles[variant],
-    ...style,
-  };
-
-  const hoverEffect = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
-    e.currentTarget.style.transform = 'translateY(-2px)';
-    e.currentTarget.style.boxShadow = 'var(--shadow)';
-    if (variant === 'primary') e.currentTarget.style.backgroundColor = 'var(--green-dark)';
-    if (variant === 'secondary') e.currentTarget.style.backgroundColor = 'var(--green-light)';
-  };
-
-  const resetEffect = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
-    e.currentTarget.style.transform = 'translateY(0)';
-    e.currentTarget.style.boxShadow = 'none';
-    if (variant === 'primary') e.currentTarget.style.backgroundColor = 'var(--green)';
-    if (variant === 'secondary') e.currentTarget.style.backgroundColor = 'transparent';
-  };
+  const classes = cn(base, variants[variant], sizes[size], fullWidth && 'w-full', className);
 
   if (href) {
+    const external = href.startsWith('http') || href.startsWith('mailto:');
     return (
       <Link
         href={href}
-        style={baseStyle}
-        onMouseEnter={hoverEffect}
-        onMouseLeave={resetEffect}
-        target={href.startsWith('http') ? '_blank' : undefined}
-        rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}
+        className={classes}
+        target={external ? '_blank' : undefined}
+        rel={external ? 'noopener noreferrer' : undefined}
       >
         {children}
       </Link>
@@ -83,12 +61,7 @@ export default function Button({
   }
 
   return (
-    <button
-      style={baseStyle}
-      onMouseEnter={hoverEffect}
-      onMouseLeave={resetEffect}
-      {...props}
-    >
+    <button className={classes} {...props}>
       {children}
     </button>
   );

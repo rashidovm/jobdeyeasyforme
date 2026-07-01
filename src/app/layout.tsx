@@ -11,8 +11,9 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "JobDeyEasy | We do the hard part. You hit Send.",
-  description: "JobDeyEasy finds jobs that fit you and prepares everything — a tailored CV, a matching cover letter, and a ready-to-send email.",
+  title: "JobDeyEasy — We do the hard part. You hit Send.",
+  description:
+    "JobDeyEasy finds jobs that fit you and prepares everything: a tailored CV, a matching cover letter, and a ready-to-send email. You just hit Send.",
 };
 
 export default function RootLayout({
@@ -22,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={jakarta.variable}>
-      <body style={{ fontFamily: "var(--font-jakarta), sans-serif" }}>
+      <body>
         {children}
         <FloatingWhatsApp />
       </body>

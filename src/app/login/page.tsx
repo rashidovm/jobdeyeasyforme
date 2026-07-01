@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { LogIn } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
@@ -18,20 +20,17 @@ function LoginForm() {
   const nextPath = searchParams.get('next') || '/dashboard';
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) router.push(nextPath);
-    };
-    checkSession();
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) router.push(nextPath);
+    })();
   }, [router, nextPath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-
     if (error) {
       setError(error.message);
       setLoading(false);
@@ -41,73 +40,43 @@ function LoginForm() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px',
-      backgroundColor: 'var(--cream)'
-    }}>
-      <div style={{ marginBottom: '32px' }}>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-cream px-6 py-12">
+      <div className="mb-8">
         <Logo />
       </div>
+      <div className="w-full max-w-md rounded-3xl border border-line bg-white p-8 shadow-card sm:p-10">
+        <h1 className="text-center text-2xl font-extrabold">Welcome back</h1>
+        <p className="mt-1.5 text-center text-sm text-muted">Log in to check your applications.</p>
 
-      <div style={{
-        width: '100%',
-        maxWidth: '400px',
-        backgroundColor: 'var(--white)',
-        padding: '40px',
-        borderRadius: 'var(--radius)',
-        boxShadow: 'var(--shadow)',
-        border: '1px solid var(--border)'
-      }}>
-        <h1 style={{ fontSize: '1.8rem', marginBottom: '8px', textAlign: 'center' }}>Welcome back</h1>
-        <p style={{ color: 'var(--grey)', textAlign: 'center', marginBottom: '32px', fontSize: '0.9rem' }}>
-          Log in to check your applications
-        </p>
+        <div className="mt-7">
+          <ErrorBox message={error} />
+          <form onSubmit={handleSubmit}>
+            <FormField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+            <FormField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+            <Button type="submit" fullWidth disabled={loading} className="mt-2">
+              {loading ? 'Signing in…' : <>Sign in <LogIn className="h-4 w-4" /></>}
+            </Button>
+          </form>
+        </div>
 
-        <ErrorBox message={error} />
-
-        <form onSubmit={handleSubmit}>
-          <FormField
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
-          <FormField
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
-          <Button type="submit" fullWidth disabled={loading} style={{ marginTop: '8px' }}>
-            {loading ? 'Signing in...' : 'Sign in'}
-          </Button>
-        </form>
-
-        <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.9rem', color: 'var(--grey)' }}>
-          Don't have an account?{' '}
-          <a href="/signup" style={{ color: 'var(--green)', fontWeight: 600 }}>Start free trial</a>
+        <p className="mt-6 text-center text-sm text-muted">
+          Don&apos;t have an account?{' '}
+          <Link href="/signup" className="font-semibold text-green hover:underline">
+            Start free trial
+          </Link>
         </p>
       </div>
-    </div>
+    </main>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        Loading...
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-cream text-muted">Loading…</div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );

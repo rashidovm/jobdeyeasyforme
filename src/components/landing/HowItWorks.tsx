@@ -1,41 +1,51 @@
+'use client';
+
 import React from 'react';
+import { UserRound, Search, PenLine, Send, CheckCheck } from 'lucide-react';
 import { HOW_IT_WORKS_STEPS } from '@/lib/constants';
+import Reveal from '@/components/ui/Reveal';
+
+const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  UserRound,
+  Search,
+  PenLine,
+  Send,
+  CheckCheck,
+};
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" style={{ padding: '80px 24px', backgroundColor: 'var(--white)' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <span style={{ color: 'var(--gold)', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '2px', textTransform: 'uppercase' }}>HOW IT WORKS</span>
-          <h2 style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', marginTop: '8px', letterSpacing: '-0.5px' }}>Five simple steps to your next job</h2>
-        </div>
+    <section id="how-it-works" className="bg-white py-20 md:py-28">
+      <div className="container-tight">
+        <Reveal className="mx-auto max-w-2xl text-center">
+          <span className="eyebrow">How it works</span>
+          <h2 className="mt-3 text-3xl md:text-4xl">Five steps between you and your next job</h2>
+          <p className="mt-4 text-muted">
+            You do two things: tell us about yourself, and hit Send. We handle everything in the middle.
+          </p>
+        </Reveal>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
-          {HOW_IT_WORKS_STEPS.map((step) => (
-            <div key={step.num} style={{
-              padding: '24px',
-              backgroundColor: 'var(--cream)',
-              borderRadius: 'var(--radius)',
-              border: '1px solid var(--border)',
-            }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                backgroundColor: 'var(--green)',
-                color: 'white',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                marginBottom: '16px'
-              }}>
-                {step.num}
-              </div>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '8px' }}>{step.title}</h3>
-              <p style={{ color: 'var(--grey)', fontSize: '0.9rem', lineHeight: 1.6 }}>{step.desc}</p>
-            </div>
-          ))}
+        <div className="relative mt-16">
+          {/* connecting rail (desktop) */}
+          <div aria-hidden className="absolute left-0 right-0 top-7 hidden h-px bg-line lg:block" />
+
+          <ol className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
+            {HOW_IT_WORKS_STEPS.map((step, i) => {
+              const Icon = ICONS[step.icon] ?? UserRound;
+              return (
+                <Reveal as="li" key={step.num} delay={i * 90} className="relative flex flex-col items-start">
+                  <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl bg-green text-white shadow-card">
+                    <Icon className="h-6 w-6" />
+                    <span className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-gold text-[0.7rem] font-extrabold text-white">
+                      {step.num}
+                    </span>
+                  </div>
+                  <h3 className="mt-5 text-base font-bold">{step.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted">{step.desc}</p>
+                </Reveal>
+              );
+            })}
+          </ol>
         </div>
       </div>
     </section>

@@ -1,17 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Check, ArrowLeft, ArrowRight, MailCheck, MessageCircle } from 'lucide-react';
 import { supabase, buildWhatsappLink } from '@/lib/supabase';
 import { PLANS } from '@/lib/constants';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
 import FormField from '@/components/ui/FormField';
 import ErrorBox from '@/components/ui/ErrorBox';
+import { cn } from '@/lib/cn';
 import { SubscriptionTier } from '@/types';
 
+type Stage = 'plan' | 'account' | 'payment' | 'verify';
+
 export default function SignupPage() {
-  const [step, setStep] = useState(1);
+  const [stage, setStage] = useState<Stage>('plan');
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionTier | null>(null);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -20,218 +25,256 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleSelectPlan = (planId: SubscriptionTier) => {
-    setSelectedPlan(planId);
-    setStep(2);
+  const selectedPlanObj = PLANS.find((p) => p.id === selectedPlan);
+  const isPaid = !!selectedPlan && selectedPlan !== 'free_trial';
+  const stepNumber = stage === 'plan' ? 1 : stage === 'account' ? 2 : 3;
+
+  const choosePlan = (id: SubscriptionTier) => {
+    setSelectedPlan(id);
+    setStage('account');
   };
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
     if (password.length < 8) {
       setError('Password must be at least 8 characters long.');
       return;
     }
-
     setLoading(true);
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
-
-    if (authError) {
-      setError(authError.message);
-      setLoading(false);
-      return;
-    }
-
-    const userId = authData.user?.id;
-    if (!userId) {
-      setError('Failed to create account. Please try again.');
-      setLoading(false);
-      return;
-    }
-
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: userId,
-      full_name: fullName,
-      email: email,
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName, tier: selectedPlan },
+        emailRedirectTo: `${origin}/auth/callback?next=/onboarding`,
+      },
     });
 
-    if (profileError) {
-      setError(`Profile creation failed: ${profileError.message}`);
+    if (signUpError) {
+      setError(signUpError.message);
       setLoading(false);
       return;
     }
 
-    const isPaid = selectedPlan && selectedPlan !== 'free_trial';
-    const { error: subError } = await supabase.from('subscriptions').insert({
-      user_id: userId,
-      tier: selectedPlan,
-      status: 'pending',
-      applications_used: 0,
-      applications_limit: 1,
-      started_at: new Date().toISOString(),
-      renews_at: isPaid ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null,
-    });
+    setLoading(false);
 
-    if (subError) {
-      setError(`Subscription setup failed: ${subError.message}`);
-      setLoading(false);
+    // If email confirmation is OFF, Supabase returns a live session immediately.
+    if (data.session) {
+      if (isPaid) setStage('payment');
+      else router.push('/onboarding');
       return;
     }
 
-    if (isPaid) {
-      setStep(3);
-      setLoading(false);
-    } else {
-      router.push('/onboarding');
-    }
+    // Email confirmation is ON: ask them to confirm.
+    setStage('verify');
   };
 
-  const selectedPlanObj = PLANS.find(p => p.id === selectedPlan);
-
   return (
-    <div style={{ minHeight: '100vh', padding: '40px 24px', backgroundColor: 'var(--cream)' }}>
-      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+    <main className="min-h-screen bg-cream px-6 py-10">
+      <div className={cn('mx-auto', stage === 'plan' ? 'max-w-5xl' : 'max-w-xl')}>
+        <div className="mb-6 flex justify-center">
           <Logo />
         </div>
 
-        <div style={{
-          backgroundColor: 'var(--white)',
-          borderRadius: 'var(--radius)',
-          boxShadow: 'var(--shadow)',
-          padding: '40px',
-          border: '1px solid var(--border)'
-        }}>
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <span style={{
-              backgroundColor: 'var(--green-light)',
-              color: 'var(--green)',
-              padding: '4px 12px',
-              borderRadius: '50px',
-              fontSize: '0.75rem',
-              fontWeight: 700
-            }}>
-              Step {step} of 3
-            </span>
-          </div>
+        <div className="rounded-3xl border border-line bg-white p-7 shadow-card sm:p-10">
+          {stage !== 'verify' && (
+            <div className="mb-8 flex justify-center">
+              <span className="inline-flex items-center gap-2 rounded-full bg-green-light px-3.5 py-1.5 text-xs font-bold text-green">
+                Step {stepNumber} of 3
+              </span>
+            </div>
+          )}
 
-          {step === 1 && (
+          {/* STEP 1 — plan */}
+          {stage === 'plan' && (
             <div>
-              <h1 style={{ fontSize: '1.6rem', marginBottom: '8px', textAlign: 'center' }}>Choose your plan</h1>
-              <p style={{ color: 'var(--grey)', textAlign: 'center', marginBottom: '32px', fontSize: '0.9rem' }}>
-                Start free. Upgrade anytime.
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-                {PLANS.map(plan => (
-                  <button
-                    key={plan.id}
-                    onClick={() => handleSelectPlan(plan.id)}
-                    style={{
-                      border: selectedPlan === plan.id ? '2px solid var(--green)' : '1px solid var(--border)',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '20px',
-                      backgroundColor: selectedPlan === plan.id ? 'var(--green-light)' : 'var(--white)',
-                      textAlign: 'left',
-                      transition: 'all 0.2s ease',
-                      cursor: 'pointer',
-                      position: 'relative'
-                    }}
-                  >
-                    {plan.founding20 && (
-                      <span style={{
-                        position: 'absolute',
-                        top: '8px',
-                        right: '8px',
-                        backgroundColor: 'var(--gold)',
-                        color: 'white',
-                        fontSize: '0.6rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '50px'
-                      }}>Founding 20</span>
-                    )}
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: '4px' }}>{plan.name}</h3>
-                    <p style={{ fontWeight: 800, fontSize: '1.2rem', marginBottom: '8px' }}>
-                      {plan.priceLabel}<span style={{ fontSize: '0.8rem', color: 'var(--grey)', fontWeight: 400 }}>{plan.period}</span>
-                    </p>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--grey)' }}>{plan.features[0]}</p>
-                  </button>
-                ))}
+              <div className="text-center">
+                <h1 className="text-2xl font-extrabold">Choose your plan</h1>
+                <p className="mt-2 text-sm text-muted">
+                  A plan sets how many jobs we prepare for you each month. Start free — upgrade anytime.
+                </p>
               </div>
-              <p style={{ textAlign: 'center', marginTop: '24px' }}>
-                <a href="/login" style={{ color: 'var(--grey)', fontSize: '0.9rem' }}>Already have an account? Log in</a>
+
+              <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {PLANS.map((plan) => {
+                  const featured = plan.id === 'starter';
+                  return (
+                    <button
+                      key={plan.id}
+                      onClick={() => choosePlan(plan.id)}
+                      className={cn(
+                        'relative flex flex-col rounded-2xl border p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-card',
+                        featured ? 'border-green ring-1 ring-green/20' : 'border-line'
+                      )}
+                    >
+                      {plan.founding20 && (
+                        <span className="absolute right-3 top-3 rounded-full bg-gold px-2 py-0.5 text-[0.6rem] font-bold text-white">
+                          Founding 20
+                        </span>
+                      )}
+                      <h3 className="text-base font-bold">{plan.name}</h3>
+                      <p className="text-xs font-medium text-gold">{plan.bestFor}</p>
+                      <div className="mt-3 flex items-baseline gap-1">
+                        <span className="text-2xl font-extrabold">{plan.priceLabel}</span>
+                        {plan.period && <span className="text-xs text-muted">{plan.period}</span>}
+                      </div>
+                      <ul className="mt-4 flex-1 space-y-2">
+                        {plan.features.slice(0, 4).map((f) => (
+                          <li key={f} className="flex items-start gap-2 text-xs text-muted">
+                            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green" strokeWidth={3} />
+                            {f}
+                          </li>
+                        ))}
+                        {plan.features.length > 4 && (
+                          <li className="text-xs font-medium text-green">+ {plan.features.length - 4} more</li>
+                        )}
+                      </ul>
+                      <span
+                        className={cn(
+                          'mt-5 inline-flex items-center justify-center gap-1.5 rounded-full py-2 text-sm font-semibold',
+                          featured ? 'bg-green text-white' : 'border-2 border-green text-green'
+                        )}
+                      >
+                        {plan.cta} <ArrowRight className="h-4 w-4" />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="mt-7 text-center text-sm">
+                <Link href="/login" className="text-muted hover:text-ink">
+                  Already have an account? Log in
+                </Link>
               </p>
             </div>
           )}
 
-          {step === 2 && (
+          {/* STEP 2 — account */}
+          {stage === 'account' && (
             <div>
-              <h1 style={{ fontSize: '1.6rem', marginBottom: '8px', textAlign: 'center' }}>Create your account</h1>
-              <p style={{ color: 'var(--grey)', textAlign: 'center', marginBottom: '32px', fontSize: '0.9rem' }}>
-                You selected: <strong>{selectedPlanObj?.name}</strong>
-              </p>
+              <div className="text-center">
+                <h1 className="text-2xl font-extrabold">Create your account</h1>
+                <p className="mt-2 text-sm text-muted">
+                  You selected <span className="font-semibold text-ink">{selectedPlanObj?.name}</span>
+                  {selectedPlanObj?.period ? ` · ${selectedPlanObj.priceLabel}${selectedPlanObj.period}` : ' · free'}.
+                </p>
+              </div>
 
-              <ErrorBox message={error} />
-
-              <form onSubmit={handleCreateAccount}>
-                <FormField label="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-                <FormField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                <FormField
-                  label="Password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  helperText="Minimum 8 characters"
-                />
-                <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                  <Button type="button" variant="secondary" onClick={() => setStep(1)}>Back</Button>
-                  <Button type="submit" disabled={loading} fullWidth>
-                    {loading ? 'Creating account...' : 'Create Account'}
-                  </Button>
+              {selectedPlanObj && (
+                <div className="mt-6 rounded-2xl border border-line bg-cream p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-gold">What&apos;s included</p>
+                  <ul className="mt-2.5 grid gap-x-4 gap-y-2 sm:grid-cols-2">
+                    {selectedPlanObj.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-sm text-ink">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-green" strokeWidth={3} />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </form>
+              )}
+
+              <div className="mt-7">
+                <ErrorBox message={error} />
+                <form onSubmit={handleCreateAccount}>
+                  <FormField label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required autoComplete="name" />
+                  <FormField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+                  <FormField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required helperText="Minimum 8 characters" autoComplete="new-password" />
+                  <div className="mt-6 flex gap-3">
+                    <Button type="button" variant="secondary" onClick={() => setStage('plan')}>
+                      <ArrowLeft className="h-4 w-4" /> Back
+                    </Button>
+                    <Button type="submit" disabled={loading} fullWidth>
+                      {loading ? 'Creating account…' : 'Create account'}
+                    </Button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
 
-          {step === 3 && selectedPlanObj && (
-            <div style={{ textAlign: 'center' }}>
-              <h1 style={{ fontSize: '1.6rem', marginBottom: '8px' }}>Complete your payment</h1>
-              <p style={{ color: 'var(--grey)', marginBottom: '32px', fontSize: '0.9rem' }}>
-                You're subscribing to <strong>{selectedPlanObj.name}</strong> for <strong>{selectedPlanObj.priceLabel}{selectedPlanObj.period}</strong>.
+          {/* STEP 3a — payment (paid, confirmation off) */}
+          {stage === 'payment' && selectedPlanObj && (
+            <div className="text-center">
+              <h1 className="text-2xl font-extrabold">Complete your payment</h1>
+              <p className="mt-2 text-sm text-muted">
+                You&apos;re subscribing to <span className="font-semibold text-ink">{selectedPlanObj.name}</span> for{' '}
+                <span className="font-semibold text-ink">{selectedPlanObj.priceLabel}{selectedPlanObj.period}</span>.
               </p>
 
-              <div style={{
-                backgroundColor: 'var(--cream)',
-                padding: '24px',
-                borderRadius: 'var(--radius-sm)',
-                marginBottom: '32px',
-                border: '1px solid var(--border)',
-                textAlign: 'left'
-              }}>
-                <p style={{ fontWeight: 600, marginBottom: '8px' }}>Summary</p>
-                <p style={{ fontSize: '0.9rem', color: 'var(--grey)', margin: 0 }}>Plan: {selectedPlanObj.name}</p>
-                <p style={{ fontSize: '0.9rem', color: 'var(--grey)', margin: 0 }}>Price: {selectedPlanObj.priceLabel}{selectedPlanObj.period}</p>
+              <div className="mx-auto mt-6 max-w-sm rounded-2xl border border-line bg-cream p-5 text-left">
+                <p className="text-xs font-bold uppercase tracking-wide text-gold">Summary</p>
+                <div className="mt-2 flex justify-between text-sm">
+                  <span className="text-muted">Plan</span>
+                  <span className="font-semibold">{selectedPlanObj.name}</span>
+                </div>
+                <div className="mt-1 flex justify-between text-sm">
+                  <span className="text-muted">Price</span>
+                  <span className="font-semibold">{selectedPlanObj.priceLabel}{selectedPlanObj.period}</span>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="mt-7 flex flex-col gap-3">
                 <Button
                   href={buildWhatsappLink(`Hi! I just signed up for the ${selectedPlanObj.name} plan (${selectedPlanObj.priceLabel}${selectedPlanObj.period}). My email is ${email}. I'd like to complete my payment.`)}
                   variant="whatsapp"
                   fullWidth
                 >
-                  💬 Complete via WhatsApp
+                  <MessageCircle className="h-4 w-4" /> Complete via WhatsApp
                 </Button>
                 <Button href="/onboarding" variant="secondary" fullWidth>
-                  Continue for now
+                  Continue to onboarding
                 </Button>
               </div>
             </div>
           )}
+
+          {/* STEP 3b — verify email (confirmation on) */}
+          {stage === 'verify' && (
+            <div className="text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-green-light text-green">
+                <MailCheck className="h-8 w-8" />
+              </div>
+              <h1 className="mt-5 text-2xl font-extrabold">Confirm your email</h1>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
+                We sent a confirmation link to <span className="font-semibold text-ink">{email}</span>. Click it to
+                verify your account — you&apos;ll be taken straight to onboarding.
+              </p>
+
+              {isPaid && selectedPlanObj && (
+                <div className="mx-auto mt-6 max-w-sm rounded-2xl border border-gold/40 bg-gold-light p-4 text-left">
+                  <p className="text-sm font-medium text-gold">
+                    You picked {selectedPlanObj.name} ({selectedPlanObj.priceLabel}{selectedPlanObj.period}). You can
+                    sort payment now on WhatsApp while you wait for the email.
+                  </p>
+                  <div className="mt-3">
+                    <Button
+                      href={buildWhatsappLink(`Hi! I just signed up for the ${selectedPlanObj.name} plan (${selectedPlanObj.priceLabel}${selectedPlanObj.period}). My email is ${email}. I'd like to complete my payment.`)}
+                      variant="whatsapp"
+                      size="sm"
+                      fullWidth
+                    >
+                      <MessageCircle className="h-4 w-4" /> Complete payment
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <p className="mt-6 text-sm text-muted">
+                Didn&apos;t get it? Check spam, or{' '}
+                <Link href="/login" className="font-semibold text-green hover:underline">
+                  log in
+                </Link>{' '}
+                once confirmed.
+              </p>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

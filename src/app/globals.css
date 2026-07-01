@@ -1,67 +1,71 @@
-:root {
-  --green: #1E7C4B;
-  --green-dark: #155c37;
-  --green-light: #e8f5ee;
-  --gold: #D4881E;
-  --gold-light: #fdf3e3;
-  --cream: #FAF8F3;
-  --dark: #111827;
-  --grey: #4B5563;
-  --grey-light: #F3F4F6;
-  --border: #E5E7EB;
-  --white: #ffffff;
-  --whatsapp: #25D366;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  --radius: 14px;
-  --radius-sm: 8px;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow: 0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
-  --shadow-lg: 0 20px 48px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.06);
-
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-cream text-ink font-sans antialiased;
+  }
+  ::selection {
+    background: rgba(30, 124, 75, 0.16);
+  }
+  h1, h2, h3, h4 {
+    @apply font-extrabold tracking-tight;
+    text-wrap: balance;
+  }
 }
 
+@layer components {
+  .container-tight {
+    @apply mx-auto w-full max-w-[1120px] px-6;
+  }
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-[0.72rem] font-bold uppercase tracking-[0.2em] text-gold;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-white shadow-soft;
+  }
+  .link-muted {
+    @apply text-muted transition-colors hover:text-ink;
+  }
+}
+
+/* Scroll reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Nice thin scrollbar on light surfaces */
 * {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html, body {
-  background-color: var(--cream);
-  color: var(--dark);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-button {
-  font-family: inherit;
-  cursor: pointer;
-  border: none;
-  background: none;
-}
-
-input, select, textarea {
-  font-family: inherit;
-  font-size: 1rem;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  line-height: 1.2;
-  font-weight: 700;
+  scrollbar-width: thin;
+  scrollbar-color: #d8d2c4 transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }
