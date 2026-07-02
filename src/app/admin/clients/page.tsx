@@ -46,8 +46,8 @@ export default function ClientsPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-extrabold">Clients</h1>
-      <p className="mb-6 text-sm text-muted">Everyone who signed up. Open a client to see their profile and manage applications.</p>
+      <h1 className="mb-1 text-2xl font-extrabold">Job seekers</h1>
+      <p className="mb-6 text-sm text-muted">Everyone who signed up. Open a job seeker to see their profile and manage applications.</p>
 
       <div className="mb-4 flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 shadow-soft">
         <Search className="h-4 w-4 text-muted" />

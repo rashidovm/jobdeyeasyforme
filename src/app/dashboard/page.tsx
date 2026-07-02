@@ -6,8 +6,9 @@ import {
   FileText, UserRound, ArrowUpCircle, MessageCircle, LogOut, Rocket, Mail, Send,
   Hourglass, PenLine, Eye, CheckCircle2, Inbox, PartyPopper, Trophy, XCircle,
 } from 'lucide-react';
+import { Clock, Sparkles, FileCheck2, Copy } from 'lucide-react';
 import { supabase, buildWhatsappLink } from '@/lib/supabase';
-import { Profile, Subscription, Application } from '@/types';
+import { Profile, Subscription, Application, ClientMaterial, CvDeliverable } from '@/types';
 import { STATUS_MAP, PLANS } from '@/lib/constants';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
@@ -26,6 +27,8 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [material, setMaterial] = useState<ClientMaterial | null>(null);
+  const [cvDeliverable, setCvDeliverable] = useState<CvDeliverable | null>(null);
   const [tab, setTab] = useState<Tab>('apps');
   const router = useRouter();
 
@@ -67,6 +70,15 @@ export default function DashboardPage() {
           .order('created_at', { ascending: false });
         if (appErr) throw appErr;
         setApplications(appData || []);
+
+        const { data: matFull } = await supabase
+          .from('client_materials').select('*').eq('user_id', user.id).maybeSingle();
+        setMaterial(matFull as ClientMaterial);
+
+        // Only returns a row once the CV has been delivered (RLS-protected).
+        const { data: dv } = await supabase
+          .from('cv_deliverables').select('*').eq('user_id', user.id).maybeSingle();
+        setCvDeliverable(dv as CvDeliverable);
       } catch (err: any) {
         setError(err.message || 'Failed to load dashboard data.');
       } finally {
@@ -171,6 +183,8 @@ export default function DashboardPage() {
 
         {tab === 'apps' && (
           <div>
+            {material && <CvCard material={material} deliverable={cvDeliverable} />}
+
             <h1 className="mb-6 text-2xl font-extrabold">My Applications</h1>
             {applications.length === 0 ? (
               <div className="rounded-2xl border border-line bg-white p-10 text-center shadow-soft">
@@ -366,6 +380,98 @@ function Row({ label, value, capitalize }: { label: string; value?: string | nul
     <div className="flex justify-between gap-4">
       <dt className="text-muted">{label}</dt>
       <dd className={cn('font-semibold text-ink', capitalize && 'capitalize')}>{value || '—'}</dd>
+    </div>
+  );
+}
+
+function useCountdown(target?: string | null) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(t);
+  }, []);
+  if (!target) return null;
+  const diff = new Date(target).getTime() - now;
+  if (diff <= 0) return 'Any moment now';
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h left`;
+  return `${h}h ${m}m left`;
+}
+
+function CvCard({ material, deliverable }: { material: ClientMaterial; deliverable: CvDeliverable | null }) {
+  const status = material.cv_review_status || 'drafting';
+  const countdown = useCountdown(material.cv_due_at);
+  const delivered = status === 'delivered';
+
+  const steps = [
+    { label: 'CV Ready', done: ['human_review', 'ready', 'delivered'].includes(status) },
+    { label: 'Cover Letter Ready', done: ['human_review', 'ready', 'delivered'].includes(status) },
+    { label: 'Human Reviewed', done: ['ready', 'delivered'].includes(status) },
+    { label: 'Delivered', done: delivered },
+  ];
+
+  const copy = (text: string) => navigator.clipboard.writeText(text);
+
+  return (
+    <div className="mb-6 rounded-2xl border border-line bg-white p-6 shadow-soft">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 font-bold">
+          <FileCheck2 className="h-5 w-5 text-green" /> Your professional CV
+        </h2>
+        {!delivered ? (
+          countdown && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-1 text-xs font-semibold text-muted">
+              <Clock className="h-3.5 w-3.5" /> Ready in {countdown}
+            </span>
+          )
+        ) : (
+          <span className="rounded-full bg-green-light px-3 py-1 text-xs font-semibold text-green">Delivered</span>
+        )}
+      </div>
+
+      {!delivered && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-gold/30 bg-gold-light p-3.5 text-sm text-gold">
+          <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
+          {status === 'drafting'
+            ? 'Our AI is drafting your CV now. A human will refine it before it reaches you.'
+            : 'Your CV is written and a human is giving it the final polish. You\u2019ll get it very soon.'}
+        </div>
+      )}
+
+      <div className="relative mb-2 flex justify-between">
+        <div className="absolute left-0 right-0 top-3 h-0.5 bg-line" />
+        {steps.map((s, i) => (
+          <div key={i} className="relative z-10 flex flex-1 flex-col items-center gap-1.5">
+            <div className={cn('flex h-6 w-6 items-center justify-center rounded-full border-2 text-[0.65rem] font-bold',
+              s.done ? 'border-green bg-green text-white' : 'border-line bg-white text-muted')}>
+              {s.done ? '\u2713' : i + 1}
+            </div>
+            <span className={cn('text-center text-[0.68rem]', s.done ? 'text-ink' : 'text-muted')}>{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {delivered && deliverable && (
+        <div className="mt-5 space-y-3 border-t border-line pt-5">
+          <div className="flex flex-wrap gap-2.5">
+            {deliverable.final_cv_url && <Button href={deliverable.final_cv_url} variant="secondary" size="sm"><FileText className="h-4 w-4" /> Your CV</Button>}
+            {deliverable.final_cover_letter_url && <Button href={deliverable.final_cover_letter_url} variant="secondary" size="sm"><Mail className="h-4 w-4" /> Cover Letter</Button>}
+            {deliverable.final_job_link && <Button href={deliverable.final_job_link} variant="secondary" size="sm">Read the job</Button>}
+          </div>
+          {deliverable.final_email && (
+            <div className="rounded-xl border border-line bg-cream p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">Ready-to-send email</p>
+                <button onClick={() => copy(deliverable.final_email || '')} className="inline-flex items-center gap-1 text-xs font-semibold text-green">
+                  <Copy className="h-3.5 w-3.5" /> Copy
+                </button>
+              </div>
+              <pre className="whitespace-pre-wrap font-sans text-sm text-ink">{deliverable.final_email}</pre>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

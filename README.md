@@ -82,3 +82,27 @@ This is used only by the server route that creates staff logins. It is never exp
 
 ### Coming next (not built yet)
 Pass 2: full CV profile + skill tick-boxes. Pass 3: client dashboard countdowns + AI fit-score (Groq). Pass 4: top-ups + public jobs page.
+
+---
+
+## Pass 2 — Full CV intake + AI drafting
+
+### One-time Supabase setup
+Run **`supabase_pass2_setup.sql`** in the SQL Editor (after the previous three files). It adds:
+- the CV-pipeline columns on `client_materials`,
+- the `cv_deliverables` table (locked so job seekers can't see drafts until you deliver),
+- a private **`cvs`** storage bucket for uploaded CVs,
+- the new **1 / 3 / 7 / 15** application counts in the signup trigger.
+
+(Optional: uncomment the last lines of that file to update EXISTING subscribers to the new counts.)
+
+### New environment variable
+Add **`GROQ_API_KEY`** (server-only) in Vercel and your local `.env.local`. Without it, AI drafting is skipped and staff can still write CVs manually. Optional: `GROQ_MODEL` (defaults to `llama-3.3-70b-versatile`).
+
+### What's new
+- **Onboarding** is now a full CV questionnaire: exact address, dream job, education (with a "no formal education" option), skippable work-experience stage, skill tick-boxes (+ add your own), the standout section, and an alert-channel choice (WhatsApp / Email / SMS). Every question has a sample/hint.
+- **On submit**, Groq drafts a first-pass CV + cover letter automatically; status moves to "human review."
+- **Job seeker dashboard** shows a CV card: tracker (CV Ready → Cover Letter → Human Reviewed → Delivered) + a live countdown (24h/48h by plan). The finished CV, cover letter, and ready-to-send email appear **only after you deliver**.
+- **Admin/staff** open a job seeker and see: raw data, the AI drafts, a "Generate AI draft" button, fields for the final CV / cover letter / email / job link, and a **Deliver** button. Admins also get a **Manage plan** control (change tier, reset the 30-day cycle, adjust applications) — this stays even after Paystack.
+- Uploaded CVs are real files now (stored privately; staff open them with one click).
+- "Clients" is now **"Job seekers"** in the UI.

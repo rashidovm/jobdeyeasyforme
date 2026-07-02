@@ -50,6 +50,8 @@ export interface Subscription {
   started_at: string;
 }
 
+export type CvReviewStatus = 'drafting' | 'human_review' | 'ready' | 'delivered';
+
 export interface ClientMaterial {
   id: string;
   user_id: string;
@@ -59,6 +61,25 @@ export interface ClientMaterial {
   quick_fill: Record<string, any> | null;
   hidden_skills_notes: string | null;
   contact_cleanup_notes: string | null;
+  dream_job: string | null;
+  cv_review_status: CvReviewStatus;
+  cv_due_at: string | null;
+  delivery_channels: string[] | null;
+  uploaded_cv_url: string | null;
+}
+
+export interface CvDeliverable {
+  id: string;
+  user_id: string;
+  ai_cv_draft: string | null;
+  ai_cover_letter_draft: string | null;
+  final_cv_url: string | null;
+  final_cover_letter_url: string | null;
+  final_email: string | null;
+  final_job_link: string | null;
+  delivered: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Application {

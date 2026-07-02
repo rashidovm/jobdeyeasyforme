@@ -52,7 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isAdmin = profile.role === 'admin';
   const nav = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, show: true },
-    { href: '/admin/clients', label: 'Clients', icon: Users, show: true },
+    { href: '/admin/clients', label: 'Job seekers', icon: Users, show: true },
     { href: '/admin/staff', label: 'Staff', icon: UserCog, show: isAdmin },
     { href: '/admin/jobs', label: 'Job postings', icon: Briefcase, show: isAdmin },
   ].filter((n) => n.show);

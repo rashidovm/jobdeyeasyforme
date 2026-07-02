@@ -7,6 +7,9 @@ export const PLANS = [
     period: '',
     bestFor: 'Try it once, on us.',
     description: 'See exactly how it works with one fully tailored application.',
+    applications: 1,
+    topupPrice: 0,
+    cvHours: 48,
     features: [
       '1 tailored application',
       'CV built from scratch if needed',
@@ -22,11 +25,14 @@ export const PLANS = [
     price: 1500,
     priceLabel: '₦1,500',
     period: '/mo',
-    bestFor: 'Weekly momentum.',
+    bestFor: 'Steady momentum.',
     description: 'For the active job seeker who wants steady, consistent applications.',
+    applications: 3,
+    topupPrice: 500,
+    cvHours: 48,
     features: [
       'Everything in Free Trial',
-      '5 applications / month',
+      '3 applications / month',
       'Email + WhatsApp delivery',
       '7 & 14-day outcome check-ins',
       'Follow-up message written for you',
@@ -42,13 +48,16 @@ export const PLANS = [
     period: '/mo',
     bestFor: 'Maximum reach.',
     description: 'For the serious candidate applying widely and moving fast.',
+    applications: 7,
+    topupPrice: 400,
+    cvHours: 24,
     features: [
       'Everything in Starter',
-      '15 applications / month',
+      '7 applications / month',
       'SMS delivery added',
       'Daily job alerts',
       '5 interview prep sets',
-      '24-hour review window',
+      '24-hour CV turnaround',
     ],
     cta: 'Choose Active Search',
   },
@@ -60,40 +69,74 @@ export const PLANS = [
     period: '/mo',
     bestFor: 'All-out search.',
     description: 'Priority support for your most aggressive, focused job hunt.',
+    applications: 15,
+    topupPrice: 300,
+    cvHours: 24,
     features: [
       'Everything in Active Search',
-      '30 applications / month',
+      '15 applications / month',
       '10 interview prep sets',
-      'Priority 24-hour review',
+      'Priority 24-hour CV turnaround',
     ],
     cta: 'Choose Hunt Mode',
   },
 ];
 
+// Quick lookups used across the app + the database trigger.
+export const APPLICATION_LIMITS: Record<string, number> = {
+  free_trial: 1, starter: 3, active_search: 7, unlimited_hunt: 15,
+};
+export const TOPUP_PRICES: Record<string, number> = {
+  free_trial: 0, starter: 500, active_search: 400, unlimited_hunt: 300,
+};
+export const CV_TURNAROUND_HOURS: Record<string, number> = {
+  free_trial: 48, starter: 48, active_search: 24, unlimited_hunt: 24,
+};
+
+export const DELIVERY_CHANNELS = [
+  { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'email', label: 'Email' },
+  { id: 'sms', label: 'SMS' },
+];
+
+// Skill tick-boxes for onboarding (pick from these + add your own).
+export const SKILL_OPTIONS = [
+  'Customer service', 'Communication', 'Teamwork', 'Problem solving', 'Time management',
+  'Microsoft Excel', 'Microsoft Word', 'Data entry', 'Sales', 'Marketing',
+  'Social media', 'Content writing', 'Graphic design', 'Photography', 'Video editing',
+  'Bookkeeping', 'Accounting', 'Cash handling', 'Inventory management', 'Driving',
+  'Customer support', 'Cold calling', 'Negotiation', 'Project management', 'Leadership',
+  'Teaching', 'Public speaking', 'Research', 'Report writing', 'Event planning',
+  'Cooking', 'Tailoring', 'Hairdressing', 'Barbing', 'Makeup artistry',
+  'Web development', 'Mobile development', 'WordPress', 'SEO', 'Digital marketing',
+  'Customer relationship management (CRM)', 'Phone support', 'Filing & admin', 'Typing',
+  'Fluent English', 'Fluent Yoruba', 'Fluent Hausa', 'Fluent Igbo', 'Pidgin English',
+];
+
 export const FAQS = [
   {
     q: "What exactly is an \u201Capplication\u201D?",
-    a: "One application is the full package we prepare for a single job: a CV tailored to that role, a matching cover letter, and a ready-to-send email addressed to the right place. When a plan says \u201C5 applications a month,\u201D that means five different jobs we prepare for you, end to end. You just hit Send.",
+    a: "One application is the full package we prepare for a single job: a CV tailored to that role, a matching cover letter, and a ready-to-send email addressed to the right place. When a plan says \u201C3 applications a month,\u201D that means three different jobs we prepare for you, end to end. You just hit Send.",
   },
   {
     q: "I don't have a CV at all. Can you still help me?",
     a: "Yes. We build your CV from scratch using our guided survey. You don't need any prior document to get started.",
   },
   {
-    q: "How long does it take to get my application?",
-    a: "For Free Trial and Starter, applications are delivered within 48 hours. Active Search and Hunt Mode get a priority 24-hour review window.",
+    q: "How fast do I get my professional CV?",
+    a: "Your tailored CV and cover letter are prepared within 48 hours on Free Trial and Starter, and within 24 hours on Active Search and Hunt Mode. Finding and preparing your monthly job applications happens across your 30-day cycle.",
   },
   {
     q: "What does 'AI-drafted, human-checked' actually mean?",
-    a: "We use AI to rapidly draft your CV and cover letter based on the job description and your profile, but a human team member reviews and refines every single word before it reaches you.",
+    a: "We use AI to rapidly draft your CV and cover letter based on the job and your profile, but a human team member reviews and refines every single word before it reaches you.",
   },
   {
     q: "What if I use up my monthly applications before the month ends?",
-    a: "You can wait for your cycle to renew, or upgrade to a higher tier at any time. We will never lower the quality of your applications to rush through a quota.",
+    a: "You can buy extra applications (top-ups), upgrade to a higher plan, or wait for your cycle to renew. Higher plans get cheaper top-ups. We'll always alert you before you run out.",
   },
   {
     q: "Do I need to download an app?",
-    a: "No. Everything is delivered directly to your email and WhatsApp. You can also check your status on our web dashboard, but no app download is required.",
+    a: "No. Everything is delivered to your dashboard and your chosen channel (WhatsApp, email, or SMS). No app download required.",
   },
   {
     q: "What is the 'Founding 20' offer exactly?",
@@ -118,7 +161,7 @@ export const HOW_IT_WORKS_STEPS = [
   { num: 1, title: "Tell us about yourself", desc: "Share your background, goals, and preferences through our simple onboarding.", icon: "UserRound" },
   { num: 2, title: "We find jobs that fit you", desc: "Our team manually sources real job postings matched to your profile and goals.", icon: "Search" },
   { num: 3, title: "We do all the writing", desc: "We tailor your CV and craft a custom cover letter for that specific job.", icon: "PenLine" },
-  { num: 4, title: "We deliver it to you", desc: "Your documents and a ready-to-send email arrive on WhatsApp or your dashboard.", icon: "Send" },
+  { num: 4, title: "We deliver it to you", desc: "Your documents and a ready-to-send email arrive on your dashboard and chosen channel.", icon: "Send" },
   { num: 5, title: "You just hit Send", desc: "Copy, paste, send. We follow up later to track how it went.", icon: "CheckCheck" },
 ];
 
@@ -133,3 +176,6 @@ export const STATUS_MAP = {
   offer: { label: 'Offer!', color: '#D4881E', bg: '#FDF3E3', icon: 'Trophy' },
   rejected: { label: 'Not selected', color: '#EF4444', bg: '#FEF2F2', icon: 'XCircle' },
 } as const;
+
+// The CV deliverable pipeline (separate from job applications).
+export const CV_STAGES = ['drafting', 'human_review', 'ready', 'delivered'] as const;

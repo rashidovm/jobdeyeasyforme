@@ -97,7 +97,7 @@ export default function AdminDashboard() {
           <h2 className="font-bold">{isAdmin ? 'Recent applications' : 'My applications'}</h2>
           {isAdmin && (
             <Link href="/admin/clients" className="inline-flex items-center gap-1 text-sm font-semibold text-green">
-              All clients <ArrowRight className="h-4 w-4" />
+              All job seekers <ArrowRight className="h-4 w-4" />
             </Link>
           )}
         </div>
