@@ -179,3 +179,20 @@ export const STATUS_MAP = {
 
 // The CV deliverable pipeline (separate from job applications).
 export const CV_STAGES = ['drafting', 'human_review', 'ready', 'delivered'] as const;
+
+export const WORK_MODES = [
+  { id: 'onsite', label: 'On-site' },
+  { id: 'remote', label: 'Remote' },
+  { id: 'hybrid', label: 'Hybrid' },
+];
+
+// Which alert channels each plan includes.
+export const PLAN_CHANNELS: Record<string, string[]> = {
+  free_trial: ['email'],
+  starter: ['whatsapp', 'email'],
+  active_search: ['whatsapp', 'email', 'sms'],
+  unlimited_hunt: ['whatsapp', 'email', 'sms'],
+};
+
+// How long (hours) a job seeker can reply after the team's last message.
+export const CHAT_REPLY_WINDOW_HOURS = 3;

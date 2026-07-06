@@ -121,3 +121,20 @@ Run **`supabase_pass3_setup.sql`** in the SQL Editor. It:
 - **Chat** between the team and each job seeker — a "Messages" tab on the job seeker dashboard, and a chat panel on each job seeker's admin page.
 - **Top-ups + tier-aware upgrades** on the dashboard: only higher plans show as upgrades, and a top-up card that activates once the monthly applications are used up (₦500 / ₦400 / ₦300 by plan).
 - **Job postings are now editable** (edit button on each posting).
+
+---
+
+## Pass 4 — CV/application split, notify, gated chat, job fields
+
+### One-time Supabase setup
+Run **`supabase_pass4_setup.sql`** in the SQL Editor. It adds: staff posting permission, job listing fields (work mode / close date / filled), a notifications log, and message read tracking.
+
+### What's new
+- **First CV vs Application separated.** The post-registration deliverable is now **CV + cover letter only**. Ready-to-send emails + job links belong to applications.
+- **Applications count down** on delivery, and the seeker sees remaining.
+- **Status is button-driven** (Human review → Mark ready → Deliver); deliver requires both links.
+- **Notify panel**: shows the seeker's email/WhatsApp/SMS (only the channels their plan includes), a copy-paste message, and a "mark sent" that appears on the seeker's dashboard.
+- **Manage plan redesigned**: move-to-plan buttons, ± application control, reset cycle.
+- **Top-up only unlocks when applications are fully used.**
+- **Gated chat**: seekers reply only within ~3 hours of the team's last message, otherwise they open a **support ticket** to initiate. Unread badge on the Messages tab.
+- **Job postings**: on-site / remote / hybrid, an application-close date, and a "role filled" toggle. **Staff can post jobs only if an admin enables it** (toggle on the Staff page).

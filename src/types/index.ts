@@ -22,6 +22,7 @@ export interface Profile {
   full_name: string;
   email: string;
   role: UserRole;
+  can_post_jobs?: boolean;
   whatsapp_number: string | null;
   phone_number: string | null;
   city_state: string | null;
@@ -114,6 +115,9 @@ export interface JobPosting {
   source_link: string;
   public_teaser: string;
   internal_description: string;
+  work_mode: string | null;
+  closes_at: string | null;
+  filled: boolean;
   created_at?: string;
 }
 
@@ -123,5 +127,16 @@ export interface Message {
   sender_id: string;
   sender_role: string;
   body: string;
+  read_by_client?: boolean;
+  created_at: string;
+}
+
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  channel: string;
+  note: string | null;
+  context: string | null;
   created_at: string;
 }

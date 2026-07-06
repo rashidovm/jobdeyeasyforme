@@ -5,6 +5,7 @@ import { Briefcase, Plus, MapPin, Building2, Trash2, Pencil } from 'lucide-react
 import { supabase } from '@/lib/supabase';
 import { useAdmin } from '@/lib/adminContext';
 import { JobPosting } from '@/types';
+import { WORK_MODES } from '@/lib/constants';
 import Button from '@/components/ui/Button';
 import FormField from '@/components/ui/FormField';
 import ErrorBox from '@/components/ui/ErrorBox';
@@ -12,6 +13,7 @@ import ErrorBox from '@/components/ui/ErrorBox';
 const EMPTY = {
   title: '', company: '', location: '', salary: '',
   source_link: '', public_teaser: '', internal_description: '',
+  work_mode: 'onsite', closes_at: '',
 };
 
 export default function JobsPage() {
@@ -38,7 +40,7 @@ export default function JobsPage() {
       return;
     }
     setSaving(true);
-    const payload = { ...form, salary: form.salary || null };
+    const payload = { ...form, salary: form.salary || null, closes_at: form.closes_at ? new Date(form.closes_at).toISOString() : null };
     const { error: e1 } = editingId
       ? await supabase.from('job_postings').update(payload).eq('id', editingId)
       : await supabase.from('job_postings').insert(payload);
@@ -54,11 +56,17 @@ export default function JobsPage() {
     setForm({
       title: j.title, company: j.company, location: j.location, salary: j.salary || '',
       source_link: j.source_link, public_teaser: j.public_teaser, internal_description: j.internal_description,
+      work_mode: j.work_mode || 'onsite', closes_at: j.closes_at ? j.closes_at.slice(0, 16) : '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const cancelEdit = () => { setEditingId(null); setForm({ ...EMPTY }); };
+
+  const toggleFilled = async (j: JobPosting) => {
+    await supabase.from('job_postings').update({ filled: !j.filled }).eq('id', j.id);
+    load();
+  };
 
   const remove = async (id: string) => {
     if (!confirm('Delete this job posting?')) return;
@@ -66,7 +74,8 @@ export default function JobsPage() {
     load();
   };
 
-  if (profile?.role !== 'admin') return <div className="text-muted">Admins only.</div>;
+  const canPost = profile?.role === 'admin' || (profile?.role === 'staff' && profile?.can_post_jobs);
+  if (!canPost) return <div className="text-muted">You don\u2019t have permission to post jobs. Ask an admin to enable it.</div>;
 
   return (
     <div>
@@ -88,6 +97,15 @@ export default function JobsPage() {
               <FormField label="Location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} required />
             </div>
             <FormField label="Salary (optional)" value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} placeholder="₦150,000 – ₦250,000" />
+            <div className="mb-4 flex gap-4">
+              <div className="flex-1">
+                <label className="mb-1.5 block text-sm font-semibold">Work mode</label>
+                <select value={form.work_mode} onChange={(e) => setForm({ ...form, work_mode: e.target.value })} className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-[0.95rem] outline-none focus:border-green focus:ring-2 focus:ring-green/15">
+                  {WORK_MODES.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+                </select>
+              </div>
+              <FormField label="Applications close (optional)" type="datetime-local" value={form.closes_at} onChange={(e) => setForm({ ...form, closes_at: e.target.value })} />
+            </div>
             <FormField label="Source link" value={form.source_link} onChange={(e) => setForm({ ...form, source_link: e.target.value })} placeholder="https://…" required />
             <FormField as="textarea" label="Public teaser" value={form.public_teaser} onChange={(e) => setForm({ ...form, public_teaser: e.target.value })} helperText="Short blurb shown on the public jobs page." required />
             <FormField as="textarea" label="Internal description" value={form.internal_description} onChange={(e) => setForm({ ...form, internal_description: e.target.value })} helperText="Full details your staff use to write the application." required />
@@ -116,12 +134,19 @@ export default function JobsPage() {
                 <li key={j.id} className="rounded-xl border border-line p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate font-semibold">{j.title}</p>
-                      <p className="flex items-center gap-3 text-xs text-muted">
+                      <p className="flex items-center gap-2 truncate font-semibold">
+                        {j.title}
+                        {j.filled && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[0.6rem] font-bold uppercase text-red-600">Filled</span>}
+                      </p>
+                      <p className="flex flex-wrap items-center gap-3 text-xs text-muted">
                         <span className="flex items-center gap-1"><Building2 className="h-3 w-3" /> {j.company}</span>
                         <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {j.location}</span>
+                        {j.work_mode && <span className="rounded-full bg-cream px-2 py-0.5 capitalize">{j.work_mode}</span>}
                       </p>
                       <p className="mt-1.5 line-clamp-2 text-sm text-muted">{j.public_teaser}</p>
+                      <button onClick={() => toggleFilled(j)} className="mt-2 text-xs font-semibold text-green hover:underline">
+                        {j.filled ? 'Mark as open' : 'Mark role filled'}
+                      </button>
                     </div>
                     <div className="flex shrink-0 gap-1">
                       <button onClick={() => edit(j)} className="rounded-lg p-2 text-muted hover:bg-green-light hover:text-green" aria-label="Edit">

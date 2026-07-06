@@ -6,10 +6,10 @@ import {
   FileText, UserRound, ArrowUpCircle, MessageCircle, LogOut, Rocket, Mail, Send,
   Hourglass, PenLine, Eye, CheckCircle2, Inbox, PartyPopper, Trophy, XCircle,
 } from 'lucide-react';
-import { Clock, Sparkles, FileCheck2, Copy, MessageSquare, Zap } from 'lucide-react';
+import { Clock, Sparkles, FileCheck2, MessageSquare, Zap, Bell, LifeBuoy } from 'lucide-react';
 import { supabase, buildWhatsappLink } from '@/lib/supabase';
-import { Profile, Subscription, Application, ClientMaterial, CvDeliverable, Message } from '@/types';
-import { STATUS_MAP, PLANS, TOPUP_PRICES } from '@/lib/constants';
+import { Profile, Subscription, Application, ClientMaterial, CvDeliverable, Message, Notification } from '@/types';
+import { STATUS_MAP, PLANS, TOPUP_PRICES, CHAT_REPLY_WINDOW_HOURS } from '@/lib/constants';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
 import ErrorBox from '@/components/ui/ErrorBox';
@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [material, setMaterial] = useState<ClientMaterial | null>(null);
   const [cvDeliverable, setCvDeliverable] = useState<CvDeliverable | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [tab, setTab] = useState<Tab>('apps');
   const router = useRouter();
 
@@ -85,6 +86,11 @@ export default function DashboardPage() {
           .from('messages').select('*').eq('thread_user_id', user.id)
           .order('created_at', { ascending: true });
         setMessages((msgs as Message[]) || []);
+
+        const { data: notifs } = await supabase
+          .from('notifications').select('*').eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        setNotifications((notifs as Notification[]) || []);
       } catch (err: any) {
         setError(err.message || 'Failed to load dashboard data.');
       } finally {
@@ -110,6 +116,16 @@ export default function DashboardPage() {
     }
   };
 
+  useEffect(() => {
+    if (tab !== 'messages') return;
+    const ids = messages.filter((m) => m.sender_role !== 'client' && !m.read_by_client).map((m) => m.id);
+    if (!ids.length) return;
+    supabase.from('messages').update({ read_by_client: true }).in('id', ids).then(() => {
+      setMessages((prev) => prev.map((m) => (ids.includes(m.id) ? { ...m, read_by_client: true } : m)));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, messages]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-cream text-muted">
@@ -127,9 +143,14 @@ export default function DashboardPage() {
   const outOfApps = limit > 0 && used >= limit;
   const topupPrice = TOPUP_PRICES[subscription?.tier || 'free_trial'] || 0;
 
-  const navItems: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  const teamMsgs = messages.filter((m) => m.sender_role !== 'client');
+  const lastTeamAt = teamMsgs.length ? new Date(teamMsgs[teamMsgs.length - 1].created_at).getTime() : 0;
+  const canReply = lastTeamAt > 0 && Date.now() - lastTeamAt < CHAT_REPLY_WINDOW_HOURS * 3600 * 1000;
+  const unreadCount = messages.filter((m) => m.sender_role !== 'client' && !m.read_by_client).length;
+
+  const navItems: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }>; badge?: number }[] = [
     { id: 'apps', label: 'My Applications', icon: FileText },
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
+    { id: 'messages', label: 'Messages', icon: MessageSquare, badge: unreadCount },
     { id: 'profile', label: 'My Profile', icon: UserRound },
     { id: 'upgrade', label: 'Upgrade Plan', icon: ArrowUpCircle },
   ];
@@ -163,6 +184,7 @@ export default function DashboardPage() {
               )}
             >
               <item.icon className="h-4 w-4" /> {item.label}
+              {item.badge ? <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[0.65rem] font-bold text-white">{item.badge}</span> : null}
             </button>
           ))}
         </nav>
@@ -352,9 +374,23 @@ export default function DashboardPage() {
 
         {tab === 'messages' && (
           <div>
-            <h1 className="mb-2 text-2xl font-extrabold">Messages</h1>
-            <p className="mb-6 text-sm text-muted">Chat with the JobDeyEasy team about your CV or applications.</p>
-            <MessagesPanel messages={messages} onSend={sendMessage} meId={profile?.id} />
+            <h1 className="mb-2 text-2xl font-extrabold">Messages &amp; support</h1>
+            <p className="mb-6 text-sm text-muted">The team reaches you here. To ask a question, open a support ticket.</p>
+
+            {notifications.length > 0 && (
+              <div className="mb-5 rounded-2xl border border-line bg-white p-4 shadow-soft">
+                <p className="mb-2 flex items-center gap-2 text-sm font-bold"><Bell className="h-4 w-4 text-gold" /> Recent alerts</p>
+                <ul className="space-y-1.5">
+                  {notifications.slice(0, 5).map((n) => (
+                    <li key={n.id} className="text-sm text-muted">
+                      We notified you via <span className="font-semibold capitalize text-ink">{n.channel}</span> · {new Date(n.created_at).toLocaleString()}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <MessagesPanel messages={messages} onSend={sendMessage} meId={profile?.id} canReply={canReply} />
           </div>
         )}
 
@@ -423,7 +459,10 @@ export default function DashboardPage() {
               onClick={() => setTab(item.id)}
               className={cn('flex flex-col items-center gap-1 px-4 py-1 text-[0.68rem] font-semibold', tab === item.id ? 'text-green' : 'text-muted')}
             >
-              <item.icon className="h-5 w-5" />
+              <span className="relative">
+                <item.icon className="h-5 w-5" />
+                {item.badge ? <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[0.55rem] font-bold text-white">{item.badge}</span> : null}
+              </span>
               {item.label.replace('My ', '').replace(' Plan', '')}
             </button>
           ))}
@@ -469,7 +508,6 @@ function CvCard({ material, deliverable }: { material: ClientMaterial; deliverab
     { label: 'Delivered', done: delivered },
   ];
 
-  const copy = (text: string) => navigator.clipboard.writeText(text);
 
   return (
     <div className="mb-6 rounded-2xl border border-line bg-white p-6 shadow-soft">
@@ -515,38 +553,29 @@ function CvCard({ material, deliverable }: { material: ClientMaterial; deliverab
           <div className="flex flex-wrap gap-2.5">
             {deliverable.final_cv_url && <Button href={deliverable.final_cv_url} variant="secondary" size="sm"><FileText className="h-4 w-4" /> Your CV</Button>}
             {deliverable.final_cover_letter_url && <Button href={deliverable.final_cover_letter_url} variant="secondary" size="sm"><Mail className="h-4 w-4" /> Cover Letter</Button>}
-            {deliverable.final_job_link && <Button href={deliverable.final_job_link} variant="secondary" size="sm">Read the job</Button>}
           </div>
-          {deliverable.final_email && (
-            <div className="rounded-xl border border-line bg-cream p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted">Ready-to-send email</p>
-                <button onClick={() => copy(deliverable.final_email || '')} className="inline-flex items-center gap-1 text-xs font-semibold text-green">
-                  <Copy className="h-3.5 w-3.5" /> Copy
-                </button>
-              </div>
-              <pre className="whitespace-pre-wrap font-sans text-sm text-ink">{deliverable.final_email}</pre>
-            </div>
-          )}
+          <p className="text-xs text-muted">This is your professional CV and cover letter. Job-specific applications appear below as we prepare them.</p>
         </div>
       )}
     </div>
   );
 }
 
-function MessagesPanel({ messages, onSend, meId }: { messages: Message[]; onSend: (b: string) => void; meId?: string }) {
+function MessagesPanel({ messages, onSend, meId, canReply }: { messages: Message[]; onSend: (b: string) => void; meId?: string; canReply: boolean }) {
   const [text, setText] = useState('');
+  const [ticketOpen, setTicketOpen] = useState(false);
   const submit = () => {
     const b = text.trim();
     if (!b) return;
     onSend(b);
     setText('');
+    setTicketOpen(false);
   };
   return (
     <div className="rounded-2xl border border-line bg-white shadow-soft">
-      <div className="max-h-[440px] min-h-[280px] space-y-3 overflow-y-auto p-5">
+      <div className="max-h-[440px] min-h-[240px] space-y-3 overflow-y-auto p-5">
         {messages.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted">No messages yet. Say hello or ask a question — the team will reply here.</p>
+          <p className="py-10 text-center text-sm text-muted">No messages yet. Open a support ticket below if you have a question.</p>
         ) : (
           messages.map((m) => {
             const mine = m.sender_id === meId;
@@ -561,15 +590,26 @@ function MessagesPanel({ messages, onSend, meId }: { messages: Message[]; onSend
           })
         )}
       </div>
-      <div className="flex gap-2 border-t border-line p-3">
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }}
-          placeholder="Type a message…"
-          className="w-full rounded-full border border-line px-4 py-2.5 text-sm outline-none focus:border-green focus:ring-2 focus:ring-green/15"
-        />
-        <Button onClick={submit}><Send className="h-4 w-4" /></Button>
+
+      <div className="border-t border-line p-3">
+        {canReply ? (
+          <div className="flex gap-2">
+            <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }}
+              placeholder="Reply to the team…" className="w-full rounded-full border border-line px-4 py-2.5 text-sm outline-none focus:border-green focus:ring-2 focus:ring-green/15" />
+            <Button onClick={submit}><Send className="h-4 w-4" /></Button>
+          </div>
+        ) : ticketOpen ? (
+          <div className="flex gap-2">
+            <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }}
+              placeholder="Describe your question…" className="w-full rounded-full border border-line px-4 py-2.5 text-sm outline-none focus:border-green focus:ring-2 focus:ring-green/15" autoFocus />
+            <Button onClick={submit}><Send className="h-4 w-4" /></Button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 py-2 text-center">
+            <p className="text-xs text-muted">This isn&apos;t a live chat — the team replies here, and replies stay open for a few hours after they message you.</p>
+            <Button variant="secondary" size="sm" onClick={() => setTicketOpen(true)}><LifeBuoy className="h-4 w-4" /> Open a support ticket</Button>
+          </div>
+        )}
       </div>
     </div>
   );

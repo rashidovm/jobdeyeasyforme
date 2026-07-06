@@ -54,7 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, show: true },
     { href: '/admin/clients', label: 'Job seekers', icon: Users, show: true },
     { href: '/admin/staff', label: 'Staff', icon: UserCog, show: isAdmin },
-    { href: '/admin/jobs', label: 'Job postings', icon: Briefcase, show: isAdmin },
+    { href: '/admin/jobs', label: 'Job postings', icon: Briefcase, show: isAdmin || !!profile.can_post_jobs },
   ].filter((n) => n.show);
 
   return (

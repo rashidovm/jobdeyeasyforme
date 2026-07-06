@@ -8,6 +8,7 @@ import { Profile } from '@/types';
 import Button from '@/components/ui/Button';
 import FormField from '@/components/ui/FormField';
 import ErrorBox from '@/components/ui/ErrorBox';
+import { cn } from '@/lib/cn';
 
 export default function StaffPage() {
   const { profile } = useAdmin();
@@ -27,6 +28,11 @@ export default function StaffPage() {
       .from('profiles').select('*').eq('role', 'staff').order('created_at', { ascending: false });
     setStaff((data as Profile[]) || []);
     setLoading(false);
+  };
+
+  const toggleCanPost = async (s: Profile) => {
+    await supabase.from('profiles').update({ can_post_jobs: !s.can_post_jobs }).eq('id', s.id);
+    loadStaff();
   };
 
   useEffect(() => { loadStaff(); }, []);
@@ -131,12 +137,19 @@ export default function StaffPage() {
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-green font-bold text-white">
                     {s.full_name?.charAt(0) || 'S'}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{s.full_name}</p>
                     <p className="flex items-center gap-1 truncate text-xs text-muted">
                       <Mail className="h-3 w-3" /> {s.email}
                     </p>
                   </div>
+                  <button
+                    onClick={() => toggleCanPost(s)}
+                    className={cn('rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                      s.can_post_jobs ? 'bg-green text-white' : 'border border-line text-muted hover:border-green')}
+                  >
+                    {s.can_post_jobs ? 'Can post jobs' : 'Enable posting'}
+                  </button>
                 </li>
               ))}
             </ul>
