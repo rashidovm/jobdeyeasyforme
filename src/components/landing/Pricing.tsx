@@ -33,7 +33,7 @@ export default function Pricing() {
       <div className="container-tight">
         <Reveal className="mx-auto max-w-2xl text-center">
           <span className="eyebrow">Pricing</span>
-          <h2 className="mt-3 text-3xl md:text-4xl">Simple, honest pricing</h2>
+          <h2 className="display mt-4 text-[2.4rem] md:text-[3.1rem]">Simple, honest pricing</h2>
           <p className="mt-4 text-muted">
             Pick a plan by how many jobs you want us to prepare each month. No hidden fees. Cancel anytime.
           </p>

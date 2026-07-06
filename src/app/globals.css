@@ -12,8 +12,9 @@
     @apply bg-cream text-ink font-sans antialiased;
   }
   ::selection {
-    background: rgba(30, 124, 75, 0.16);
+    background: rgba(192, 131, 41, 0.22);
   }
+  /* App headings default to the clean sans; landing uses .font-display explicitly */
   h1, h2, h3, h4 {
     @apply font-extrabold tracking-tight;
     text-wrap: balance;
@@ -22,10 +23,21 @@
 
 @layer components {
   .container-tight {
-    @apply mx-auto w-full max-w-[1120px] px-6;
+    @apply mx-auto w-full max-w-[1160px] px-6;
+  }
+  /* Editorial display headline */
+  .display {
+    @apply font-display font-black tracking-tightest;
+    font-optical-sizing: auto;
+    letter-spacing: -0.03em;
+    line-height: 0.98;
   }
   .eyebrow {
-    @apply inline-flex items-center gap-2 text-[0.72rem] font-bold uppercase tracking-[0.2em] text-gold;
+    @apply inline-flex items-center gap-2.5 text-[0.7rem] font-bold uppercase tracking-[0.24em] text-gold;
+  }
+  .eyebrow::before {
+    content: '';
+    @apply inline-block h-px w-6 bg-gold/60;
   }
   .card {
     @apply rounded-2xl border border-line bg-white shadow-soft;
@@ -33,14 +45,24 @@
   .link-muted {
     @apply text-muted transition-colors hover:text-ink;
   }
+  /* Warm paper grain for premium dark/light surfaces */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  }
 }
 
 /* Scroll reveal */
 .reveal {
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateY(22px);
+  transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: opacity, transform;
 }
 .reveal.is-visible {
@@ -48,21 +70,14 @@
   transform: none;
 }
 
-/* Nice thin scrollbar on light surfaces */
 * {
   scrollbar-width: thin;
   scrollbar-color: #d8d2c4 transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-  .reveal {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;

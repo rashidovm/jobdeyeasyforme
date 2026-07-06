@@ -33,7 +33,7 @@ export default function FeaturedJobs() {
         <Reveal className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-xl">
             <span className="eyebrow">Live roles</span>
-            <h2 className="mt-3 text-3xl md:text-4xl">Jobs we&apos;re helping people land</h2>
+            <h2 className="display mt-4 text-[2.4rem] md:text-[3.1rem]">Jobs we&apos;re helping people land</h2>
             <p className="mt-3 text-muted">Real openings across Nigeria. See one you like? We prepare everything — you just hit Send.</p>
           </div>
           <Button href="/jobs" variant="secondary">Browse all jobs <ArrowRight className="h-4 w-4" /></Button>

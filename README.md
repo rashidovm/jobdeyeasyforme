@@ -185,3 +185,9 @@ Run **`supabase_pass7_setup.sql`**. It fixes application delete, adds a public j
 - **"We found a match for you!"** replaces the plain queued-application message on the seeker dashboard.
 - **Admins can be assigned seekers** too (admins can do staff work).
 - Reworded the internal-notes helper text.
+
+---
+
+## Pass 8 — Premium visual redesign (landing + design system)
+
+New design language: warm cream reading surface, **deep forest-green** premium anchor sections, gold accent used sparingly, and an editorial **Fraunces** display serif paired with Plus Jakarta Sans. Signature motif: a **flight-path arc** (the "Send") that draws across the hero and recurs as connective tissue. Buttons, shadows, and color tokens were refined globally, so every screen inherits the warmer, more premium base. The marketing landing page (nav, hero, sections, CTA, footer) is fully redesigned.

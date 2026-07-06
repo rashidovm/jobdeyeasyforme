@@ -19,7 +19,7 @@ export default function HowItWorks() {
       <div className="container-tight">
         <Reveal className="mx-auto max-w-2xl text-center">
           <span className="eyebrow">How it works</span>
-          <h2 className="mt-3 text-3xl md:text-4xl">Five steps between you and your next job</h2>
+          <h2 className="display mt-4 text-[2.4rem] md:text-[3.1rem]">Five steps between you and your next job</h2>
           <p className="mt-4 text-muted">
             You do two things: tell us about yourself, and hit Send. We handle everything in the middle.
           </p>

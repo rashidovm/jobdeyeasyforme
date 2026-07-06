@@ -15,7 +15,7 @@ export default function FAQ() {
       <div className="container-tight max-w-3xl">
         <Reveal className="text-center">
           <span className="eyebrow">FAQ</span>
-          <h2 className="mt-3 text-3xl md:text-4xl">Questions, answered plainly</h2>
+          <h2 className="display mt-4 text-[2.4rem] md:text-[3.1rem]">Questions, answered plainly</h2>
         </Reveal>
 
         <div className="mt-12 space-y-3">
