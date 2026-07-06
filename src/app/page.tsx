@@ -2,6 +2,7 @@ import Nav from '@/components/landing/Nav';
 import Hero from '@/components/landing/Hero';
 import TrustStrip from '@/components/landing/TrustStrip';
 import HowItWorks from '@/components/landing/HowItWorks';
+import FeaturedJobs from '@/components/landing/FeaturedJobs';
 import Pricing from '@/components/landing/Pricing';
 import Promises from '@/components/landing/Promises';
 import FAQ from '@/components/landing/FAQ';
@@ -15,6 +16,7 @@ export default function Home() {
         <Hero />
         <TrustStrip />
         <HowItWorks />
+        <FeaturedJobs />
         <Pricing />
         <Promises />
         <FAQ />

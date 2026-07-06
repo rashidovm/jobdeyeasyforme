@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { MapPin, Building2, Clock, ArrowLeft, MessageCircle, Send } from 'lucide-react';
+import { MapPin, Building2, Clock, ArrowLeft, MessageCircle, Send, Share2, Check, ExternalLink } from 'lucide-react';
 import { supabase, buildWhatsappLink } from '@/lib/supabase';
 import { JobPosting } from '@/types';
 import Logo from '@/components/ui/Logo';
@@ -14,17 +14,30 @@ export default function JobDetailPage() {
   const id = params.id as string;
   const [job, setJob] = useState<JobPosting | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase
         .from('job_postings')
-        .select('id, title, company, location, salary, work_mode, public_teaser, closes_at, filled')
+        .select('id, title, company, location, salary, work_mode, public_teaser, description, source_link, closes_at, filled')
         .eq('id', id).maybeSingle();
       setJob(data as JobPosting);
       setLoading(false);
     })();
   }, [id]);
+
+  const share = async () => {
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    const title = job ? `${job.title} at ${job.company} — JobDeyEasy` : 'JobDeyEasy';
+    if (navigator.share) {
+      try { await navigator.share({ title, url }); } catch { /* cancelled */ }
+    } else {
+      navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-cream">
@@ -42,7 +55,12 @@ export default function JobDetailPage() {
           <p className="text-muted">This job could not be found. <Link href="/jobs" className="font-semibold text-green">Browse all jobs</Link>.</p>
         ) : (
           <>
-            <h1 className="text-3xl font-extrabold">{job.title}</h1>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h1 className="text-3xl font-extrabold">{job.title}</h1>
+              <button onClick={share} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold text-ink shadow-soft transition-colors hover:border-green hover:text-green">
+                {copied ? <><Check className="h-4 w-4" /> Copied</> : <><Share2 className="h-4 w-4" /> Share</>}
+              </button>
+            </div>
             <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
               <span className="flex items-center gap-1"><Building2 className="h-4 w-4" /> {job.company}</span>
               <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {job.location}</span>
@@ -52,7 +70,17 @@ export default function JobDetailPage() {
             {job.salary && <p className="mt-3 text-lg font-bold text-green">{job.salary}</p>}
 
             <div className="mt-6 rounded-2xl border border-line bg-white p-6 shadow-soft">
-              <p className="whitespace-pre-wrap text-[0.97rem] leading-relaxed text-ink">{job.public_teaser}</p>
+              {job.public_teaser && <p className="mb-4 text-[0.97rem] font-medium leading-relaxed text-ink">{job.public_teaser}</p>}
+              {job.description ? (
+                <p className="whitespace-pre-wrap text-[0.97rem] leading-relaxed text-muted">{job.description}</p>
+              ) : (
+                <p className="text-sm text-muted">Full details are shared when we prepare your application.</p>
+              )}
+              {job.source_link && (
+                <a href={job.source_link} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-green hover:underline">
+                  View the original posting <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )}
             </div>
 
             <div className="mt-8 rounded-2xl border border-green/30 bg-green-light p-6 text-center">

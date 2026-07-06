@@ -105,7 +105,7 @@ export default function ClientDetailPage() {
     const { data: j } = await supabase.from('job_postings').select('*').eq('filled', false).order('created_at', { ascending: false });
     setJobs((j as JobPosting[]) || []);
     if (isAdmin) {
-      const { data: st } = await supabase.from('profiles').select('*').eq('role', 'staff');
+      const { data: st } = await supabase.from('profiles').select('*').in('role', ['staff', 'admin']);
       setStaff((st as Profile[]) || []);
     }
     setLoading(false);

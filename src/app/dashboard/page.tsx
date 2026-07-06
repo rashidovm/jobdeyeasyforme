@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Clock, Sparkles, FileCheck2, MessageSquare, Zap, Bell, Briefcase, Plus, CheckCircle2 as CheckC } from 'lucide-react';
 import { supabase, buildWhatsappLink } from '@/lib/supabase';
-import { Profile, Subscription, Application, ClientMaterial, CvDeliverable, Message, Notification, JobPosting, Ticket } from '@/types';
+import { Profile, Subscription, Application, ClientMaterial, CvDeliverable, Message, Notification, JobPosting, Ticket, TicketMessage } from '@/types';
 import { STATUS_MAP, PLANS, TOPUP_PRICES } from '@/lib/constants';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
@@ -305,14 +305,14 @@ export default function DashboardPage() {
 
                   if (!isDelivered) {
                     return (
-                      <div key={app.id} className="flex items-start gap-4 rounded-2xl border border-line bg-white p-6 shadow-soft">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gold-light text-gold">
-                          <Sparkles className="h-6 w-6" />
+                      <div key={app.id} className="flex items-start gap-4 rounded-2xl border border-green/30 bg-green-light/50 p-6 shadow-soft">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-green text-white">
+                          <PartyPopper className="h-6 w-6" />
                         </div>
                         <div>
-                          <h3 className="font-bold">{app.job_postings?.title || 'A new role for you'}</h3>
-                          <p className="text-sm text-muted">{app.job_postings?.company}{app.job_postings?.location ? ` · ${app.job_postings.location}` : ''}</p>
-                          <p className="mt-2 text-sm text-muted">Good news — our team found this job for you and is putting your tailored CV and cover letter together. We&apos;ll alert you the moment it&apos;s ready to send.</p>
+                          <h3 className="font-bold text-green-dark">We found a match for you!</h3>
+                          <p className="text-sm font-semibold text-ink">{app.job_postings?.title || 'A new role'}{app.job_postings?.company ? ` · ${app.job_postings.company}` : ''}</p>
+                          <p className="mt-1.5 text-sm text-muted">We&apos;re getting your tailored CV and cover letter ready for this role. We&apos;ll let you know the moment it&apos;s ready to send.</p>
                         </div>
                       </div>
                     );
@@ -402,7 +402,7 @@ export default function DashboardPage() {
             <div>
               <h1 className="mb-1 text-2xl font-extrabold">Support tickets</h1>
               <p className="mb-4 text-sm text-muted">Have a question or a problem? Open a ticket and the team will respond.</p>
-              <TicketsPanel tickets={tickets} onCreate={createTicket} />
+              <TicketsPanel tickets={tickets} onCreate={createTicket} profile={profile} />
             </div>
 
             <div>
@@ -638,7 +638,7 @@ function MessagesPanel({ messages, onSend, meId, canReply }: { messages: Message
   );
 }
 
-function TicketsPanel({ tickets, onCreate }: { tickets: Ticket[]; onCreate: (s: string, b: string) => void }) {
+function TicketsPanel({ tickets, onCreate, profile }: { tickets: Ticket[]; onCreate: (s: string, b: string) => void; profile: Profile | null }) {
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -664,24 +664,59 @@ function TicketsPanel({ tickets, onCreate }: { tickets: Ticket[]; onCreate: (s: 
 
       {tickets.length > 0 && (
         <ul className="mt-4 space-y-3">
-          {tickets.map((t) => (
-            <li key={t.id} className="rounded-xl border border-line p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold">{t.subject}</p>
-                <span className={cn('rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase', t.status === 'open' ? 'bg-gold-light text-gold' : 'bg-green-light text-green')}>{t.status}</span>
-              </div>
-              <p className="mt-1 text-sm text-muted">{t.body}</p>
-              {t.response && (
-                <div className="mt-2 rounded-lg bg-green-light p-2.5 text-sm text-green-dark">
-                  <span className="text-[0.65rem] font-bold uppercase text-gold">Team reply</span>
-                  <p className="mt-0.5 whitespace-pre-wrap">{t.response}</p>
-                </div>
-              )}
-              <p className="mt-1 text-[0.62rem] text-muted">{new Date(t.created_at).toLocaleString()}</p>
-            </li>
-          ))}
+          {tickets.map((t) => <TicketThread key={t.id} ticket={t} profile={profile} />)}
         </ul>
       )}
     </div>
+  );
+}
+
+function TicketThread({ ticket, profile }: { ticket: Ticket; profile: Profile | null }) {
+  const [expanded, setExpanded] = useState(false);
+  const [thread, setThread] = useState<TicketMessage[]>([]);
+  const [reply, setReply] = useState('');
+
+  const loadThread = async () => {
+    const { data } = await supabase.from('ticket_messages').select('*').eq('ticket_id', ticket.id).order('created_at', { ascending: true });
+    setThread((data as TicketMessage[]) || []);
+  };
+  const toggle = () => { const n = !expanded; setExpanded(n); if (n) loadThread(); };
+  const send = async () => {
+    const b = reply.trim(); if (!b || !profile) return;
+    const { error } = await supabase.from('ticket_messages').insert({ ticket_id: ticket.id, sender_id: profile.id, sender_role: 'client', body: b });
+    if (!error) { setReply(''); loadThread(); }
+  };
+
+  return (
+    <li className="rounded-xl border border-line">
+      <button onClick={toggle} className="flex w-full items-center justify-between gap-2 p-3 text-left">
+        <span className="text-sm font-semibold">{ticket.subject}</span>
+        <span className={cn('rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase', ticket.status === 'open' ? 'bg-gold-light text-gold' : 'bg-green-light text-green')}>{ticket.status}</span>
+      </button>
+      {expanded && (
+        <div className="border-t border-line p-3">
+          <div className="mb-2 rounded-lg bg-cream px-3 py-2 text-sm">{ticket.body}</div>
+          <div className="space-y-2">
+            {thread.map((m) => {
+              const mine = m.sender_role === 'client';
+              return (
+                <div key={m.id} className={cn('max-w-[85%] rounded-2xl px-3 py-2 text-sm', mine ? 'ml-auto rounded-br-md bg-green-light text-green-dark' : 'mr-auto rounded-bl-md bg-paper text-ink')}>
+                  {!mine && <p className="text-[0.62rem] font-bold uppercase text-gold">Team</p>}
+                  <p className="whitespace-pre-wrap">{m.body}</p>
+                </div>
+              );
+            })}
+          </div>
+          {ticket.status === 'open' ? (
+            <div className="mt-3 flex gap-2">
+              <input value={reply} onChange={(e) => setReply(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } }} placeholder="Reply…" className="w-full rounded-full border border-line px-3 py-2 text-sm outline-none focus:border-green" />
+              <Button size="sm" onClick={send}><Send className="h-4 w-4" /></Button>
+            </div>
+          ) : (
+            <p className="mt-3 text-center text-xs text-muted">This ticket is closed.</p>
+          )}
+        </div>
+      )}
+    </li>
   );
 }

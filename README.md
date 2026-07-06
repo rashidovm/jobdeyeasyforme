@@ -169,3 +169,19 @@ Run **`supabase_pass6_setup.sql`**. Adds the tickets table and hides internal jo
 - **Assigned staff create applications** for their seekers (not just admins).
 - **Queued applications** show a friendly "we're preparing this" message on the seeker dashboard instead of the raw stepper.
 - **Locked top-up is now truly non-clickable** until applications are used up.
+
+---
+
+## Pass 7 — Threaded tickets, jobs on homepage, richer job pages, delete fix
+
+### One-time Supabase setup
+Run **`supabase_pass7_setup.sql`**. It fixes application delete, adds a public job description, and adds the ticket conversation thread.
+
+### What's new
+- **Application delete now works** (it was blocked by a missing database permission).
+- **Tickets are a real conversation** — the seeker and the team reply back and forth, and closing the ticket is a **separate action** (with reopen). No more "reply & close" in one step.
+- **Jobs on the homepage** — a "Jobs we're helping people land" section links to the full board.
+- **Richer job pages** — a full public **job description** field, a **Share** button, and an optional link to the original posting.
+- **"We found a match for you!"** replaces the plain queued-application message on the seeker dashboard.
+- **Admins can be assigned seekers** too (admins can do staff work).
+- Reworded the internal-notes helper text.

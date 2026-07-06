@@ -115,6 +115,7 @@ export interface JobPosting {
   salary: string | null;
   source_link: string;
   public_teaser: string;
+  description: string | null;
   internal_description: string;
   work_mode: string | null;
   closes_at: string | null;
@@ -151,4 +152,14 @@ export interface Ticket {
   response: string | null;
   created_at: string;
   updated_at?: string;
+}
+
+
+export interface TicketMessage {
+  id: string;
+  ticket_id: string;
+  sender_id: string;
+  sender_role: string;
+  body: string;
+  created_at: string;
 }

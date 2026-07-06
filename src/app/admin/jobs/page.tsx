@@ -12,7 +12,7 @@ import ErrorBox from '@/components/ui/ErrorBox';
 
 const EMPTY = {
   title: '', company: '', location: '', salary: '',
-  source_link: '', public_teaser: '', internal_description: '',
+  source_link: '', public_teaser: '', description: '', internal_description: '',
   work_mode: 'onsite', closes_at: '',
 };
 
@@ -55,7 +55,7 @@ export default function JobsPage() {
     setEditingId(j.id);
     setForm({
       title: j.title, company: j.company, location: j.location, salary: j.salary || '',
-      source_link: j.source_link, public_teaser: j.public_teaser, internal_description: j.internal_description,
+      source_link: j.source_link, public_teaser: j.public_teaser, description: j.description || '', internal_description: j.internal_description,
       work_mode: j.work_mode || 'onsite', closes_at: j.closes_at ? j.closes_at.slice(0, 16) : '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -105,8 +105,9 @@ export default function JobsPage() {
             </div>
             <FormField label="Applications close (optional)" type="datetime-local" value={form.closes_at} onChange={(e) => setForm({ ...form, closes_at: e.target.value })} />
             <FormField label="Source link" value={form.source_link} onChange={(e) => setForm({ ...form, source_link: e.target.value })} placeholder="https://…" required />
-            <FormField as="textarea" label="Public teaser" value={form.public_teaser} onChange={(e) => setForm({ ...form, public_teaser: e.target.value })} helperText="Short blurb shown on the public jobs page." required />
-            <FormField as="textarea" label="Internal description" value={form.internal_description} onChange={(e) => setForm({ ...form, internal_description: e.target.value })} helperText="Full details your staff use to write the application." required />
+            <FormField as="textarea" label="Public teaser" value={form.public_teaser} onChange={(e) => setForm({ ...form, public_teaser: e.target.value })} helperText="One-line blurb shown on the jobs list." required />
+            <FormField as="textarea" label="Full job description (public)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} helperText="The full description shown on the job's own page. Paste the responsibilities, requirements, etc." />
+            <FormField as="textarea" label="Internal description" value={form.internal_description} onChange={(e) => setForm({ ...form, internal_description: e.target.value })} helperText="Private notes for writing the application. Never shown publicly." required />
             <Button type="submit" disabled={saving} fullWidth className="mt-2">
               {saving ? 'Saving…' : editingId ? 'Update job posting' : 'Add job posting'}
             </Button>
