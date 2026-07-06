@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutDashboard, Users, UserCog, Briefcase, LogOut, ShieldCheck,
+  LayoutDashboard, Users, UserCog, Briefcase, LogOut, ShieldCheck, LifeBuoy,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { AdminContext } from '@/lib/adminContext';
@@ -55,6 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/clients', label: 'Job seekers', icon: Users, show: true },
     { href: '/admin/staff', label: 'Staff', icon: UserCog, show: isAdmin },
     { href: '/admin/jobs', label: 'Job postings', icon: Briefcase, show: isAdmin || !!profile.can_post_jobs },
+    { href: '/admin/tickets', label: 'Tickets', icon: LifeBuoy, show: true },
   ].filter((n) => n.show);
 
   return (

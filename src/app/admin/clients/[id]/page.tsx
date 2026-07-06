@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
-  ArrowLeft, Mail, Phone, MapPin, FilePlus2, ChevronRight, Sparkles, Send,
+  ArrowLeft, Mail, Phone, MapPin, FilePlus2, Trash2, Sparkles, Send,
   FileDown, Clock, FileText, MessageSquare, Check, RotateCcw, Copy, Bell,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -65,16 +65,26 @@ export default function ClientDetailPage() {
     flash('Payment confirmed — subscription is now active.'); load();
   };
 
+  const jobInQueue = (jid: string) => apps.some((a) => a.job_id === jid && !['sent_to_client', 'client_applied', 'interview', 'offer', 'rejected'].includes(a.status));
+
   const quickCreateApp = async (jid: string) => {
     if (!sub) { setError('No subscription.'); return; }
+    if (jobInQueue(jid)) { setError('This job is already in this seeker\u2019s queue.'); return; }
     setBusy(true);
+    const staffId = assignedStaffId || (me?.role === 'staff' ? me.id : null);
     const { error: e } = await supabase.from('applications').insert({
       user_id: clientId, subscription_id: sub.id, job_id: jid,
-      assigned_to: assignedStaffId || null, status: 'queued', why_picked: [],
+      assigned_to: staffId, status: 'queued', why_picked: [],
     });
     setBusy(false);
     if (e) { setError(e.message); return; }
     flash('Application created from suggested job.'); load();
+  };
+
+  const deleteApp = async (id: string) => {
+    if (!confirm('Delete this application? This cannot be undone.')) return;
+    await supabase.from('applications').delete().eq('id', id);
+    flash('Application deleted.'); load();
   };
 
   const load = async () => {
@@ -168,9 +178,11 @@ export default function ClientDetailPage() {
     e.preventDefault(); setError('');
     if (!jobId) { setError('Pick a job posting.'); return; }
     if (!sub) { setError('This job seeker has no subscription.'); return; }
+    if (jobInQueue(jobId)) { setError('This job is already in this seeker\u2019s queue.'); return; }
     setBusy(true);
+    const staffId = assignTo || assignedStaffId || (me?.role === 'staff' ? me.id : null);
     const { error: insErr } = await supabase.from('applications').insert({
-      user_id: clientId, subscription_id: sub.id, job_id: jobId, assigned_to: assignTo || null,
+      user_id: clientId, subscription_id: sub.id, job_id: jobId, assigned_to: staffId,
       due_at: dueAt ? new Date(dueAt).toISOString() : null, status: 'queued', why_picked: [],
     });
     setBusy(false);
@@ -447,18 +459,20 @@ export default function ClientDetailPage() {
             </div>
           )}
 
-          {isAdmin && (
+          {(isAdmin || me?.role === 'staff') && (
             <div className="rounded-2xl border border-line bg-white p-6 shadow-soft">
-              <h2 className="mb-4 flex items-center gap-2 font-bold"><FilePlus2 className="h-5 w-5 text-green" /> New application</h2>
+              <h2 className="mb-4 flex items-center gap-2 font-bold"><FilePlus2 className="h-5 w-5 text-green" /> Add a job to the queue</h2>
               <form onSubmit={createApplication}>
                 <FormField as="select" label="Job posting" value={jobId} onChange={(e) => setJobId(e.target.value)} required>
                   <option value="">Select a job…</option>
                   {jobs.filter((j) => !j.filled).map((j) => <option key={j.id} value={j.id}>{j.title} — {j.company}</option>)}
                 </FormField>
-                <FormField as="select" label="Assign to staff" value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
-                  <option value="">Unassigned</option>
-                  {staff.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-                </FormField>
+                {isAdmin && (
+                  <FormField as="select" label="Assign to staff" value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
+                    <option value="">Seeker&apos;s assigned staff</option>
+                    {staff.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+                  </FormField>
+                )}
                 <FormField label="Deliver by" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
                 <Button type="submit" disabled={busy || jobs.length === 0} fullWidth className="mt-2">Create application</Button>
               </form>
@@ -469,11 +483,13 @@ export default function ClientDetailPage() {
             <div className="border-b border-line px-5 py-4"><h2 className="font-bold">Applications ({apps.length})</h2></div>
             {apps.length === 0 ? <div className="px-5 py-8 text-center text-sm text-muted">None yet.</div> :
               <ul className="divide-y divide-line">{apps.map((app) => { const st = STATUS_MAP[app.status]; return (
-                <li key={app.id}><Link href={`/admin/applications/${app.id}`} className="flex items-center justify-between gap-2 px-5 py-3 hover:bg-cream">
-                  <div className="min-w-0"><p className="truncate text-sm font-semibold">{app.job_postings?.title || 'Application'}</p><p className="truncate text-xs text-muted">{app.job_postings?.company}</p></div>
-                  <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: st.bg, color: st.color }}>{st.label}</span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted" />
-                </Link></li>); })}</ul>}
+                <li key={app.id} className="flex items-center gap-1 pr-2 hover:bg-cream">
+                  <Link href={`/admin/applications/${app.id}`} className="flex flex-1 items-center justify-between gap-2 px-5 py-3">
+                    <div className="min-w-0"><p className="truncate text-sm font-semibold">{app.job_postings?.title || 'Application'}</p><p className="truncate text-xs text-muted">{app.job_postings?.company}</p></div>
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: st.bg, color: st.color }}>{st.label}</span>
+                  </Link>
+                  <button onClick={() => deleteApp(app.id)} className="rounded-lg p-2 text-muted hover:bg-red-50 hover:text-red-600" aria-label="Delete application"><Trash2 className="h-4 w-4" /></button>
+                </li>); })}</ul>}
           </div>
         </div>
       </div>

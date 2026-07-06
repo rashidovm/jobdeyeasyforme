@@ -154,3 +154,18 @@ Run **`supabase_pass5_setup.sql`**. It adds seeker→staff assignment and makes 
 - **Friendlier wording** — "5 applications left this cycle" instead of "1/7".
 - **Turn-based chat** — the seeker can reply only after the team messages, and it locks again after they reply. Support tickets to start a new question.
 - **Work mode** field given full width on the job form.
+
+---
+
+## Pass 6 — Jobs board, tickets, dedupe/delete, locked top-up
+
+### One-time Supabase setup
+Run **`supabase_pass6_setup.sql`**. Adds the tickets table and hides internal job notes from the public jobs page.
+
+### What's new
+- **Public jobs board** at `/jobs`, with a shareable page per job at `/jobs/{id}` (safe to post on socials — internal notes never show). Linked from the marketing nav and the seeker dashboard, with a "new jobs" indicator. Internal notes are now blocked from public access at the database level.
+- **Support tickets** are a real, separate system (open/closed) — seekers open them from their dashboard; the team handles them on the new **Tickets** admin page. Chat is now purely the turn-based team conversation.
+- **Applications: no duplicates** (a job can't be added to a seeker's queue twice) and **deletable** (trash icon).
+- **Assigned staff create applications** for their seekers (not just admins).
+- **Queued applications** show a friendly "we're preparing this" message on the seeker dashboard instead of the raw stepper.
+- **Locked top-up is now truly non-clickable** until applications are used up.

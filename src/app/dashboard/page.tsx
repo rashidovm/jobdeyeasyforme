@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   FileText, UserRound, ArrowUpCircle, MessageCircle, LogOut, Rocket, Mail, Send,
   Hourglass, PenLine, Eye, CheckCircle2, Inbox, PartyPopper, Trophy, XCircle,
 } from 'lucide-react';
-import { Clock, Sparkles, FileCheck2, MessageSquare, Zap, Bell, LifeBuoy } from 'lucide-react';
+import { Clock, Sparkles, FileCheck2, MessageSquare, Zap, Bell, Briefcase, Plus, CheckCircle2 as CheckC } from 'lucide-react';
 import { supabase, buildWhatsappLink } from '@/lib/supabase';
-import { Profile, Subscription, Application, ClientMaterial, CvDeliverable, Message, Notification, JobPosting } from '@/types';
+import { Profile, Subscription, Application, ClientMaterial, CvDeliverable, Message, Notification, JobPosting, Ticket } from '@/types';
 import { STATUS_MAP, PLANS, TOPUP_PRICES } from '@/lib/constants';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
@@ -32,6 +33,7 @@ export default function DashboardPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [postings, setPostings] = useState<JobPosting[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [tab, setTab] = useState<Tab>('apps');
   const router = useRouter();
 
@@ -104,6 +106,11 @@ export default function DashboardPage() {
           .from('notifications').select('*').eq('user_id', user.id)
           .order('created_at', { ascending: false });
         setNotifications((notifs as Notification[]) || []);
+
+        const { data: tks } = await supabase
+          .from('tickets').select('*').eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        setTickets((tks as Ticket[]) || []);
       } catch (err: any) {
         setError(err.message || 'Failed to load dashboard data.');
       } finally {
@@ -139,6 +146,15 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, messages]);
 
+  const createTicket = async (subject: string, body: string) => {
+    if (!profile) return;
+    const { error: e } = await supabase.from('tickets').insert({ user_id: profile.id, subject, body });
+    if (!e) {
+      const { data: tks } = await supabase.from('tickets').select('*').eq('user_id', profile.id).order('created_at', { ascending: false });
+      setTickets((tks as Ticket[]) || []);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-cream text-muted">
@@ -158,8 +174,7 @@ export default function DashboardPage() {
   const isPaidPending = !!subscription && subscription.tier !== 'free_trial' && subscription.status === 'pending';
   const daysLeft = subscription?.renews_at && subscription.tier !== 'free_trial'
     ? Math.max(0, Math.ceil((new Date(subscription.renews_at).getTime() - Date.now()) / 86400000)) : null;
-  const dreamKw = (material?.dream_job || '').toLowerCase().split(/\s+/).filter((w) => w.length > 3);
-  const suggested = postings.filter((j) => dreamKw.some((k) => `${j.title} ${j.public_teaser} ${j.company}`.toLowerCase().includes(k))).slice(0, 4);
+  const newJobsCount = postings.filter((j) => Date.now() - new Date(j.created_at || 0).getTime() < 7 * 24 * 3600 * 1000).length;
 
   const lastMsg = messages[messages.length - 1];
   const canReply = !!lastMsg && lastMsg.sender_role !== 'client';
@@ -205,6 +220,14 @@ export default function DashboardPage() {
             </button>
           ))}
         </nav>
+
+        <a
+          href="/jobs"
+          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+        >
+          <Briefcase className="h-4 w-4" /> Browse jobs
+          {newJobsCount > 0 && <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[0.65rem] font-bold text-white">{newJobsCount} new</span>}
+        </a>
 
         <a
           href={buildWhatsappLink('Hi JobDeyEasy team!')}
@@ -257,22 +280,6 @@ export default function DashboardPage() {
 
             {material && <CvCard material={material} deliverable={cvDeliverable} />}
 
-            {suggested.length > 0 && (
-              <div className="mb-6 rounded-2xl border border-line bg-white p-6 shadow-soft">
-                <h2 className="mb-1 font-bold">Jobs that may fit you</h2>
-                <p className="mb-4 text-sm text-muted">Roles matching your goal ({material?.dream_job}). Our team also uses these to prepare your applications.</p>
-                <ul className="space-y-3">
-                  {suggested.map((j) => (
-                    <li key={j.id} className="rounded-xl border border-line p-3">
-                      <p className="text-sm font-semibold">{j.title}</p>
-                      <p className="text-xs text-muted">{j.company} · {j.location}{j.work_mode ? ` · ${j.work_mode}` : ''}</p>
-                      <p className="mt-1 line-clamp-2 text-sm text-muted">{j.public_teaser}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
             <h1 className="mb-6 text-2xl font-extrabold">My Applications</h1>
             {applications.length === 0 ? (
               <div className="rounded-2xl border border-line bg-white p-10 text-center shadow-soft">
@@ -294,47 +301,33 @@ export default function DashboardPage() {
                 {applications.map((app) => {
                   const status = STATUS_MAP[app.status];
                   const StatusIcon = STATUS_ICONS[status.icon] ?? Hourglass;
-                  const trackerSteps = [
-                    { label: 'CV Ready', done: !!app.tailored_cv_url },
-                    { label: 'Cover Letter', done: !!app.tailored_cover_letter_url },
-                    { label: 'Human Reviewed', done: ['human_review', 'ready', 'sent_to_client', 'client_applied', 'interview', 'offer', 'rejected'].includes(app.status) },
-                    { label: 'Delivered', done: ['ready', 'sent_to_client', 'client_applied', 'interview', 'offer', 'rejected'].includes(app.status) },
-                  ];
+                  const isDelivered = ['sent_to_client', 'client_applied', 'interview', 'offer', 'rejected'].includes(app.status);
+
+                  if (!isDelivered) {
+                    return (
+                      <div key={app.id} className="flex items-start gap-4 rounded-2xl border border-line bg-white p-6 shadow-soft">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gold-light text-gold">
+                          <Sparkles className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold">{app.job_postings?.title || 'A new role for you'}</h3>
+                          <p className="text-sm text-muted">{app.job_postings?.company}{app.job_postings?.location ? ` · ${app.job_postings.location}` : ''}</p>
+                          <p className="mt-2 text-sm text-muted">Good news — our team found this job for you and is putting your tailored CV and cover letter together. We&apos;ll alert you the moment it&apos;s ready to send.</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div key={app.id} className="rounded-2xl border border-line bg-white p-6 shadow-soft">
                       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <h3 className="font-bold">{app.job_postings?.title || 'Job Title'}</h3>
-                          <p className="text-sm text-muted">
-                            {app.job_postings?.company} · {app.job_postings?.location}
-                          </p>
+                          <p className="text-sm text-muted">{app.job_postings?.company} · {app.job_postings?.location}</p>
                         </div>
-                        <span
-                          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-                          style={{ backgroundColor: status.bg, color: status.color }}
-                        >
+                        <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: status.bg, color: status.color }}>
                           <StatusIcon className="h-3.5 w-3.5" /> {status.label}
                         </span>
-                      </div>
-
-                      {/* Tracker */}
-                      <div className="relative mb-5 flex justify-between">
-                        <div className="absolute left-0 right-0 top-3 h-0.5 bg-line" />
-                        {trackerSteps.map((step, i) => (
-                          <div key={i} className="relative z-10 flex flex-1 flex-col items-center gap-1.5">
-                            <div
-                              className={cn(
-                                'flex h-6 w-6 items-center justify-center rounded-full border-2 text-[0.65rem] font-bold',
-                                step.done ? 'border-green bg-green text-white' : 'border-line bg-white text-muted'
-                              )}
-                            >
-                              {step.done ? '✓' : i + 1}
-                            </div>
-                            <span className={cn('text-center text-[0.68rem]', step.done ? 'text-ink' : 'text-muted')}>
-                              {step.label}
-                            </span>
-                          </div>
-                        ))}
                       </div>
 
                       {app.why_picked && app.why_picked.length > 0 && (
@@ -347,30 +340,17 @@ export default function DashboardPage() {
                       )}
 
                       <div className="flex flex-wrap gap-2.5">
-                        {app.tailored_cv_url && (
-                          <Button href={app.tailored_cv_url} variant="secondary" size="sm">
-                            <FileText className="h-4 w-4" /> Tailored CV
-                          </Button>
-                        )}
-                        {app.tailored_cover_letter_url && (
-                          <Button href={app.tailored_cover_letter_url} variant="secondary" size="sm">
-                            <Mail className="h-4 w-4" /> Cover Letter
-                          </Button>
-                        )}
+                        {app.tailored_cv_url && <Button href={app.tailored_cv_url} variant="secondary" size="sm"><FileText className="h-4 w-4" /> Tailored CV</Button>}
+                        {app.tailored_cover_letter_url && <Button href={app.tailored_cover_letter_url} variant="secondary" size="sm"><Mail className="h-4 w-4" /> Cover Letter</Button>}
                         {app.apply_to_email_or_link && (
-                          <Button
-                            href={app.apply_to_email_or_link.startsWith('http') ? app.apply_to_email_or_link : `mailto:${app.apply_to_email_or_link}`}
-                            size="sm"
-                          >
+                          <Button href={app.apply_to_email_or_link.startsWith('http') ? app.apply_to_email_or_link : `mailto:${app.apply_to_email_or_link}`} size="sm">
                             <Send className="h-4 w-4" /> Send your application
                           </Button>
                         )}
                       </div>
 
                       {app.client_outcome && (
-                        <div className="mt-4 border-t border-line pt-4 text-sm">
-                          <strong>Outcome:</strong> {app.client_outcome.replace('_', ' ')}
-                        </div>
+                        <div className="mt-4 border-t border-line pt-4 text-sm"><strong>Outcome:</strong> {app.client_outcome.replace('_', ' ')}</div>
                       )}
                     </div>
                   );
@@ -418,24 +398,28 @@ export default function DashboardPage() {
         )}
 
         {tab === 'messages' && (
-          <div>
-            <h1 className="mb-2 text-2xl font-extrabold">Messages &amp; support</h1>
-            <p className="mb-6 text-sm text-muted">The team reaches you here. To ask a question, open a support ticket.</p>
+          <div className="space-y-6">
+            <div>
+              <h1 className="mb-1 text-2xl font-extrabold">Support tickets</h1>
+              <p className="mb-4 text-sm text-muted">Have a question or a problem? Open a ticket and the team will respond.</p>
+              <TicketsPanel tickets={tickets} onCreate={createTicket} />
+            </div>
 
-            {notifications.length > 0 && (
-              <div className="mb-5 rounded-2xl border border-line bg-white p-4 shadow-soft">
-                <p className="mb-2 flex items-center gap-2 text-sm font-bold"><Bell className="h-4 w-4 text-gold" /> Recent alerts</p>
-                <ul className="space-y-1.5">
-                  {notifications.slice(0, 5).map((n) => (
-                    <li key={n.id} className="text-sm text-muted">
-                      We notified you via <span className="font-semibold capitalize text-ink">{n.channel}</span> · {new Date(n.created_at).toLocaleString()}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <MessagesPanel messages={messages} onSend={sendMessage} meId={profile?.id} canReply={canReply} />
+            <div>
+              <h2 className="mb-1 text-xl font-extrabold">Chat</h2>
+              <p className="mb-4 text-sm text-muted">The team reaches you here. You can reply after they message you.</p>
+              {notifications.length > 0 && (
+                <div className="mb-4 rounded-2xl border border-line bg-white p-4 shadow-soft">
+                  <p className="mb-2 flex items-center gap-2 text-sm font-bold"><Bell className="h-4 w-4 text-gold" /> Recent alerts</p>
+                  <ul className="space-y-1.5">
+                    {notifications.slice(0, 5).map((n) => (
+                      <li key={n.id} className="text-sm text-muted">We notified you via <span className="font-semibold capitalize text-ink">{n.channel}</span> · {new Date(n.created_at).toLocaleString()}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <MessagesPanel messages={messages} onSend={sendMessage} meId={profile?.id} canReply={canReply} />
+            </div>
           </div>
         )}
 
@@ -458,13 +442,18 @@ export default function DashboardPage() {
                   )}
                 </div>
                 {topupPrice > 0 ? (
-                  <Button
-                    href={buildWhatsappLink(`Hi! I'd like to buy extra applications on my ${currentPlan?.name} plan (₦${topupPrice} each).`)}
-                    variant={outOfApps ? 'whatsapp' : 'secondary'}
-                    disabled={!outOfApps}
-                  >
-                    {outOfApps ? 'Top up now' : 'Top up (locked)'}
-                  </Button>
+                  outOfApps ? (
+                    <Button
+                      href={buildWhatsappLink(`Hi! I'd like to buy extra applications on my ${currentPlan?.name} plan (₦${topupPrice} each).`)}
+                      variant="whatsapp"
+                    >
+                      Top up now
+                    </Button>
+                  ) : (
+                    <button disabled className="cursor-not-allowed rounded-full border border-line bg-cream px-6 py-3 text-sm font-semibold text-muted opacity-70">
+                      Top up (locked)
+                    </button>
+                  )
                 ) : null}
               </div>
             </div>
@@ -608,13 +597,11 @@ function CvCard({ material, deliverable }: { material: ClientMaterial; deliverab
 
 function MessagesPanel({ messages, onSend, meId, canReply }: { messages: Message[]; onSend: (b: string) => void; meId?: string; canReply: boolean }) {
   const [text, setText] = useState('');
-  const [ticketOpen, setTicketOpen] = useState(false);
   const submit = () => {
     const b = text.trim();
     if (!b) return;
     onSend(b);
     setText('');
-    setTicketOpen(false);
   };
   return (
     <div className="rounded-2xl border border-line bg-white shadow-soft">
@@ -643,19 +630,58 @@ function MessagesPanel({ messages, onSend, meId, canReply }: { messages: Message
               placeholder="Reply to the team…" className="w-full rounded-full border border-line px-4 py-2.5 text-sm outline-none focus:border-green focus:ring-2 focus:ring-green/15" />
             <Button onClick={submit}><Send className="h-4 w-4" /></Button>
           </div>
-        ) : ticketOpen ? (
-          <div className="flex gap-2">
-            <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }}
-              placeholder="Describe your question…" className="w-full rounded-full border border-line px-4 py-2.5 text-sm outline-none focus:border-green focus:ring-2 focus:ring-green/15" autoFocus />
-            <Button onClick={submit}><Send className="h-4 w-4" /></Button>
-          </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 py-2 text-center">
-            <p className="text-xs text-muted">This isn&apos;t a live chat — you can reply once the team messages you, and it locks again after you reply. To start a new question, open a support ticket.</p>
-            <Button variant="secondary" size="sm" onClick={() => setTicketOpen(true)}><LifeBuoy className="h-4 w-4" /> Open a support ticket</Button>
-          </div>
+          <p className="py-2 text-center text-xs text-muted">You can reply here once the team messages you. For a new question, open a support ticket above.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+function TicketsPanel({ tickets, onCreate }: { tickets: Ticket[]; onCreate: (s: string, b: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const submit = () => {
+    if (!subject.trim() || !body.trim()) return;
+    onCreate(subject.trim(), body.trim());
+    setSubject(''); setBody(''); setOpen(false);
+  };
+  return (
+    <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+      {!open ? (
+        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Open a ticket</Button>
+      ) : (
+        <div className="mb-4 space-y-2 rounded-xl border border-line bg-cream p-4">
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-green" />
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Describe your question or issue…" rows={3} className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-green" />
+          <div className="flex gap-2">
+            <Button size="sm" onClick={submit}>Submit ticket</Button>
+            <button onClick={() => setOpen(false)} className="text-sm text-muted hover:text-ink">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {tickets.length > 0 && (
+        <ul className="mt-4 space-y-3">
+          {tickets.map((t) => (
+            <li key={t.id} className="rounded-xl border border-line p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold">{t.subject}</p>
+                <span className={cn('rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase', t.status === 'open' ? 'bg-gold-light text-gold' : 'bg-green-light text-green')}>{t.status}</span>
+              </div>
+              <p className="mt-1 text-sm text-muted">{t.body}</p>
+              {t.response && (
+                <div className="mt-2 rounded-lg bg-green-light p-2.5 text-sm text-green-dark">
+                  <span className="text-[0.65rem] font-bold uppercase text-gold">Team reply</span>
+                  <p className="mt-0.5 whitespace-pre-wrap">{t.response}</p>
+                </div>
+              )}
+              <p className="mt-1 text-[0.62rem] text-muted">{new Date(t.created_at).toLocaleString()}</p>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
