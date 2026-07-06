@@ -116,3 +116,12 @@ export interface JobPosting {
   internal_description: string;
   created_at?: string;
 }
+
+export interface Message {
+  id: string;
+  thread_user_id: string;
+  sender_id: string;
+  sender_role: string;
+  body: string;
+  created_at: string;
+}

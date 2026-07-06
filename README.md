@@ -106,3 +106,18 @@ Add **`GROQ_API_KEY`** (server-only) in Vercel and your local `.env.local`. With
 - **Admin/staff** open a job seeker and see: raw data, the AI drafts, a "Generate AI draft" button, fields for the final CV / cover letter / email / job link, and a **Deliver** button. Admins also get a **Manage plan** control (change tier, reset the 30-day cycle, adjust applications) — this stays even after Paystack.
 - Uploaded CVs are real files now (stored privately; staff open them with one click).
 - "Clients" is now **"Job seekers"** in the UI.
+
+---
+
+## Pass 3 — Fixes + messaging + top-ups
+
+### One-time Supabase setup
+Run **`supabase_pass3_setup.sql`** in the SQL Editor. It:
+- **Fixes** the CV status not saving (adds the missing staff/admin update permission on `client_materials`),
+- adds a **`messages`** table (job-seeker ↔ team chat).
+
+### What's new
+- **CV status now sticks.** Whatever the team selects (Drafting / Human review / Ready / Delivered) is exactly what the job seeker sees, and Deliver works at any time.
+- **Chat** between the team and each job seeker — a "Messages" tab on the job seeker dashboard, and a chat panel on each job seeker's admin page.
+- **Top-ups + tier-aware upgrades** on the dashboard: only higher plans show as upgrades, and a top-up card that activates once the monthly applications are used up (₦500 / ₦400 / ₦300 by plan).
+- **Job postings are now editable** (edit button on each posting).

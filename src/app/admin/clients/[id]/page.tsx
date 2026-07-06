@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   ArrowLeft, Mail, Phone, MapPin, FilePlus2, ChevronRight, User, Sparkles, Send,
-  FileDown, Settings2, Clock, FileText,
+  FileDown, Settings2, Clock, FileText, MessageSquare,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAdmin } from '@/lib/adminContext';
-import { Application, ClientMaterial, CvDeliverable, JobPosting, Profile, Subscription, CvReviewStatus } from '@/types';
+import { Application, ClientMaterial, CvDeliverable, JobPosting, Profile, Subscription, CvReviewStatus, Message } from '@/types';
 import { PLANS, STATUS_MAP, APPLICATION_LIMITS } from '@/lib/constants';
 import Button from '@/components/ui/Button';
 import FormField from '@/components/ui/FormField';
@@ -45,6 +45,8 @@ export default function ClientDetailPage() {
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [msgText, setMsgText] = useState('');
 
   const load = async () => {
     const [{ data: c }, { data: s }, { data: m }, { data: dv }, { data: a }] = await Promise.all([
@@ -85,7 +87,23 @@ export default function ClientDetailPage() {
     setLoading(false);
   };
 
-  useEffect(() => { if (me) load(); /* eslint-disable-next-line */ }, [me, clientId]);
+  const loadMessages = async () => {
+    const { data: msgs } = await supabase
+      .from('messages').select('*').eq('thread_user_id', clientId).order('created_at', { ascending: true });
+    setMessages((msgs as Message[]) || []);
+  };
+
+  const sendMessage = async () => {
+    const body = msgText.trim();
+    if (!body || !me) return;
+    const { error: e } = await supabase.from('messages').insert({
+      thread_user_id: clientId, sender_id: me.id, sender_role: me.role, body,
+    });
+    if (!e) { setMsgText(''); loadMessages(); }
+    else setError(e.message);
+  };
+
+  useEffect(() => { if (me) { load(); loadMessages(); } /* eslint-disable-next-line */ }, [me, clientId]);
 
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 2500); };
 
@@ -289,6 +307,37 @@ export default function ClientDetailPage() {
                 ))}
               </dl>
             ) : <p className="text-sm text-muted">No onboarding details captured.</p>}
+          </div>
+
+          <div className="rounded-2xl border border-line bg-white shadow-soft">
+            <div className="flex items-center gap-2 border-b border-line px-6 py-4">
+              <MessageSquare className="h-5 w-5 text-green" />
+              <h2 className="font-bold">Chat with this job seeker</h2>
+            </div>
+            <div className="max-h-[360px] min-h-[160px] space-y-3 overflow-y-auto p-5">
+              {messages.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted">No messages yet. Send a tip or ask for more info.</p>
+              ) : (
+                messages.map((m) => {
+                  const fromTeam = m.sender_role !== 'client';
+                  return (
+                    <div key={m.id} className={cn('max-w-[80%] rounded-2xl px-3.5 py-2 text-sm',
+                      fromTeam ? 'ml-auto rounded-br-md bg-green-light text-green-dark' : 'mr-auto rounded-bl-md bg-paper text-ink')}>
+                      {!fromTeam && <p className="mb-0.5 text-[0.68rem] font-bold uppercase tracking-wide text-gold">Job seeker</p>}
+                      <p className="whitespace-pre-wrap">{m.body}</p>
+                      <p className="mt-1 text-[0.62rem] text-muted">{new Date(m.created_at).toLocaleString()}</p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div className="flex gap-2 border-t border-line p-3">
+              <input value={msgText} onChange={(e) => setMsgText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } }}
+                placeholder="Message the job seeker…"
+                className="w-full rounded-full border border-line px-4 py-2.5 text-sm outline-none focus:border-green focus:ring-2 focus:ring-green/15" />
+              <Button onClick={sendMessage}><Send className="h-4 w-4" /></Button>
+            </div>
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Briefcase, Plus, MapPin, Building2, Trash2 } from 'lucide-react';
+import { Briefcase, Plus, MapPin, Building2, Trash2, Pencil } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAdmin } from '@/lib/adminContext';
 import { JobPosting } from '@/types';
@@ -19,6 +19,7 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ ...EMPTY });
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -37,12 +38,27 @@ export default function JobsPage() {
       return;
     }
     setSaving(true);
-    const { error: e1 } = await supabase.from('job_postings').insert({ ...form, salary: form.salary || null });
+    const payload = { ...form, salary: form.salary || null };
+    const { error: e1 } = editingId
+      ? await supabase.from('job_postings').update(payload).eq('id', editingId)
+      : await supabase.from('job_postings').insert(payload);
     setSaving(false);
     if (e1) { setError(e1.message); return; }
     setForm({ ...EMPTY });
+    setEditingId(null);
     load();
   };
+
+  const edit = (j: JobPosting) => {
+    setEditingId(j.id);
+    setForm({
+      title: j.title, company: j.company, location: j.location, salary: j.salary || '',
+      source_link: j.source_link, public_teaser: j.public_teaser, internal_description: j.internal_description,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => { setEditingId(null); setForm({ ...EMPTY }); };
 
   const remove = async (id: string) => {
     if (!confirm('Delete this job posting?')) return;
@@ -62,7 +78,7 @@ export default function JobsPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-line bg-white p-6 shadow-soft">
           <h2 className="mb-4 flex items-center gap-2 font-bold">
-            <Plus className="h-5 w-5 text-green" /> Add a job
+            <Plus className="h-5 w-5 text-green" /> {editingId ? 'Edit job' : 'Add a job'}
           </h2>
           <ErrorBox message={error} />
           <form onSubmit={create}>
@@ -76,8 +92,13 @@ export default function JobsPage() {
             <FormField as="textarea" label="Public teaser" value={form.public_teaser} onChange={(e) => setForm({ ...form, public_teaser: e.target.value })} helperText="Short blurb shown on the public jobs page." required />
             <FormField as="textarea" label="Internal description" value={form.internal_description} onChange={(e) => setForm({ ...form, internal_description: e.target.value })} helperText="Full details your staff use to write the application." required />
             <Button type="submit" disabled={saving} fullWidth className="mt-2">
-              {saving ? 'Adding…' : 'Add job posting'}
+              {saving ? 'Saving…' : editingId ? 'Update job posting' : 'Add job posting'}
             </Button>
+            {editingId && (
+              <button type="button" onClick={cancelEdit} className="mt-2 w-full text-center text-sm text-muted hover:text-ink">
+                Cancel edit
+              </button>
+            )}
           </form>
         </div>
 
@@ -102,9 +123,14 @@ export default function JobsPage() {
                       </p>
                       <p className="mt-1.5 line-clamp-2 text-sm text-muted">{j.public_teaser}</p>
                     </div>
-                    <button onClick={() => remove(j.id)} className="shrink-0 rounded-lg p-2 text-muted hover:bg-red-50 hover:text-red-600" aria-label="Delete">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex shrink-0 gap-1">
+                      <button onClick={() => edit(j)} className="rounded-lg p-2 text-muted hover:bg-green-light hover:text-green" aria-label="Edit">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => remove(j.id)} className="rounded-lg p-2 text-muted hover:bg-red-50 hover:text-red-600" aria-label="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </li>
               ))}

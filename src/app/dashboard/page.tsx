@@ -6,10 +6,10 @@ import {
   FileText, UserRound, ArrowUpCircle, MessageCircle, LogOut, Rocket, Mail, Send,
   Hourglass, PenLine, Eye, CheckCircle2, Inbox, PartyPopper, Trophy, XCircle,
 } from 'lucide-react';
-import { Clock, Sparkles, FileCheck2, Copy } from 'lucide-react';
+import { Clock, Sparkles, FileCheck2, Copy, MessageSquare, Zap } from 'lucide-react';
 import { supabase, buildWhatsappLink } from '@/lib/supabase';
-import { Profile, Subscription, Application, ClientMaterial, CvDeliverable } from '@/types';
-import { STATUS_MAP, PLANS } from '@/lib/constants';
+import { Profile, Subscription, Application, ClientMaterial, CvDeliverable, Message } from '@/types';
+import { STATUS_MAP, PLANS, TOPUP_PRICES } from '@/lib/constants';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
 import ErrorBox from '@/components/ui/ErrorBox';
@@ -19,7 +19,7 @@ const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
   Hourglass, PenLine, Eye, CheckCircle2, Inbox, Rocket, PartyPopper, Trophy, XCircle,
 };
 
-type Tab = 'apps' | 'profile' | 'upgrade';
+type Tab = 'apps' | 'messages' | 'profile' | 'upgrade';
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [material, setMaterial] = useState<ClientMaterial | null>(null);
   const [cvDeliverable, setCvDeliverable] = useState<CvDeliverable | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [tab, setTab] = useState<Tab>('apps');
   const router = useRouter();
 
@@ -79,6 +80,11 @@ export default function DashboardPage() {
         const { data: dv } = await supabase
           .from('cv_deliverables').select('*').eq('user_id', user.id).maybeSingle();
         setCvDeliverable(dv as CvDeliverable);
+
+        const { data: msgs } = await supabase
+          .from('messages').select('*').eq('thread_user_id', user.id)
+          .order('created_at', { ascending: true });
+        setMessages((msgs as Message[]) || []);
       } catch (err: any) {
         setError(err.message || 'Failed to load dashboard data.');
       } finally {
@@ -90,6 +96,18 @@ export default function DashboardPage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push('/');
+  };
+
+  const sendMessage = async (body: string) => {
+    if (!profile) return;
+    const { error: e } = await supabase.from('messages').insert({
+      thread_user_id: profile.id, sender_id: profile.id, sender_role: 'client', body,
+    });
+    if (!e) {
+      const { data: msgs } = await supabase
+        .from('messages').select('*').eq('thread_user_id', profile.id).order('created_at', { ascending: true });
+      setMessages((msgs as Message[]) || []);
+    }
   };
 
   if (loading) {
@@ -106,9 +124,12 @@ export default function DashboardPage() {
   const usagePct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
   const currentPlan = PLANS.find((p) => p.id === subscription?.tier);
   const upgradePlans = PLANS.filter((p) => p.price > (currentPlan?.price || 0));
+  const outOfApps = limit > 0 && used >= limit;
+  const topupPrice = TOPUP_PRICES[subscription?.tier || 'free_trial'] || 0;
 
   const navItems: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'apps', label: 'My Applications', icon: FileText },
+    { id: 'messages', label: 'Messages', icon: MessageSquare },
     { id: 'profile', label: 'My Profile', icon: UserRound },
     { id: 'upgrade', label: 'Upgrade Plan', icon: ArrowUpCircle },
   ];
@@ -329,20 +350,57 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {tab === 'messages' && (
+          <div>
+            <h1 className="mb-2 text-2xl font-extrabold">Messages</h1>
+            <p className="mb-6 text-sm text-muted">Chat with the JobDeyEasy team about your CV or applications.</p>
+            <MessagesPanel messages={messages} onSend={sendMessage} meId={profile?.id} />
+          </div>
+        )}
+
         {tab === 'upgrade' && (
           <div>
-            <h1 className="mb-6 text-2xl font-extrabold">Upgrade Plan</h1>
+            <h1 className="mb-6 text-2xl font-extrabold">Upgrade &amp; top-ups</h1>
+
+            {/* Top-up card — active only when applications are used up */}
+            <div className={cn('mb-5 rounded-2xl border p-6 shadow-soft', outOfApps && topupPrice > 0 ? 'border-gold bg-gold-light' : 'border-line bg-white')}>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h3 className="flex items-center gap-2 font-bold"><Zap className="h-5 w-5 text-gold" /> Buy extra applications</h3>
+                  {topupPrice > 0 ? (
+                    <p className="mt-1 text-sm text-muted">₦{topupPrice.toLocaleString()} per extra application on your plan.</p>
+                  ) : (
+                    <p className="mt-1 text-sm text-muted">Free Trial has no top-ups — upgrade to a paid plan for more applications.</p>
+                  )}
+                  {!outOfApps && topupPrice > 0 && (
+                    <p className="mt-1 text-xs text-muted">Available once you&apos;ve used all {limit} of this cycle&apos;s applications.</p>
+                  )}
+                </div>
+                {topupPrice > 0 ? (
+                  <Button
+                    href={buildWhatsappLink(`Hi! I'd like to buy extra applications on my ${currentPlan?.name} plan (₦${topupPrice} each).`)}
+                    variant={outOfApps ? 'whatsapp' : 'secondary'}
+                    disabled={!outOfApps}
+                  >
+                    {outOfApps ? 'Top up now' : 'Top up (locked)'}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Upgrade options — only higher tiers */}
             {upgradePlans.length === 0 ? (
               <div className="rounded-2xl border border-line bg-white p-8 text-center text-muted shadow-soft">
-                You&apos;re on our top plan. 🎉
+                You&apos;re on our top plan. 🎉 Use top-ups above when you run out.
               </div>
             ) : (
               <div className="space-y-4">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Move up a plan</h2>
                 {upgradePlans.map((plan) => (
                   <div key={plan.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-white p-6 shadow-soft">
                     <div>
                       <h3 className="font-bold">{plan.name}</h3>
-                      <p className="font-extrabold">{plan.priceLabel}<span className="text-sm font-normal text-muted">{plan.period}</span></p>
+                      <p className="font-extrabold">{plan.priceLabel}<span className="text-sm font-normal text-muted">{plan.period}</span> · {plan.applications} applications</p>
                       <p className="mt-1 text-sm text-muted">{plan.description}</p>
                     </div>
                     <Button href={buildWhatsappLink(`Hi! I'd like to upgrade to the ${plan.name} plan (${plan.priceLabel}${plan.period}).`)} variant="whatsapp">
@@ -472,6 +530,47 @@ function CvCard({ material, deliverable }: { material: ClientMaterial; deliverab
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function MessagesPanel({ messages, onSend, meId }: { messages: Message[]; onSend: (b: string) => void; meId?: string }) {
+  const [text, setText] = useState('');
+  const submit = () => {
+    const b = text.trim();
+    if (!b) return;
+    onSend(b);
+    setText('');
+  };
+  return (
+    <div className="rounded-2xl border border-line bg-white shadow-soft">
+      <div className="max-h-[440px] min-h-[280px] space-y-3 overflow-y-auto p-5">
+        {messages.length === 0 ? (
+          <p className="py-10 text-center text-sm text-muted">No messages yet. Say hello or ask a question — the team will reply here.</p>
+        ) : (
+          messages.map((m) => {
+            const mine = m.sender_id === meId;
+            return (
+              <div key={m.id} className={cn('max-w-[80%] rounded-2xl px-3.5 py-2 text-sm',
+                mine ? 'ml-auto rounded-br-md bg-green-light text-green-dark' : 'mr-auto rounded-bl-md bg-paper text-ink')}>
+                {!mine && <p className="mb-0.5 text-[0.68rem] font-bold uppercase tracking-wide text-gold">JobDeyEasy team</p>}
+                <p className="whitespace-pre-wrap">{m.body}</p>
+                <p className="mt-1 text-[0.62rem] text-muted">{new Date(m.created_at).toLocaleString()}</p>
+              </div>
+            );
+          })
+        )}
+      </div>
+      <div className="flex gap-2 border-t border-line p-3">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }}
+          placeholder="Type a message…"
+          className="w-full rounded-full border border-line px-4 py-2.5 text-sm outline-none focus:border-green focus:ring-2 focus:ring-green/15"
+        />
+        <Button onClick={submit}><Send className="h-4 w-4" /></Button>
+      </div>
     </div>
   );
 }

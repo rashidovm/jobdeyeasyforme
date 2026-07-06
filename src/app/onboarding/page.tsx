@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, FilePlus2, ArrowLeft, Check, Plus, CheckCircle2, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { PLANS, SKILL_OPTIONS, DELIVERY_CHANNELS, CV_TURNAROUND_HOURS } from '@/lib/constants';
+import { PLANS, DELIVERY_CHANNELS, CV_TURNAROUND_HOURS } from '@/lib/constants';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
 import FormField from '@/components/ui/FormField';
@@ -12,6 +12,7 @@ import ErrorBox from '@/components/ui/ErrorBox';
 import { cn } from '@/lib/cn';
 
 const STORAGE_KEY = 'jobdeyeasy_onboarding_v2';
+const YEARS = Array.from({ length: 45 }, (_, i) => String(new Date().getFullYear() - i));
 
 export default function OnboardingPage() {
   const [loading, setLoading] = useState(true);
@@ -22,9 +23,7 @@ export default function OnboardingPage() {
 
   const [branch, setBranch] = useState<'none' | 'has_cv' | 'no_cv'>('none');
   const [step, setStep] = useState(1);
-  const [skills, setSkills] = useState<string[]>([]);
-  const [customSkill, setCustomSkill] = useState('');
-  const [channels, setChannels] = useState<string[]>(['whatsapp', 'email']);
+  const [channels, setChannels] = useState<string[]>(['email']);
   const [cvFile, setCvFile] = useState<File | null>(null);
 
   const [d, setD] = useState({
@@ -33,12 +32,13 @@ export default function OnboardingPage() {
     eduLevel: '', fieldOfStudy: '', gradYear: '',
     workHistory: [{ title: '', company: '', startYear: '', endYear: 'Present', description: '' }],
     hasNoExperience: false,
-    certifications: '', languages: '',
+    skills: '', certifications: '', languages: '',
     hiddenTalents: '', careerGoal: '', whyHireYou: '',
   });
 
   const router = useRouter();
   const plan = PLANS.find((p) => p.id === tier);
+  const isFree = tier === 'free_trial';
 
   useEffect(() => {
     (async () => {
@@ -53,7 +53,9 @@ export default function OnboardingPage() {
 
       const { data: sub } = await supabase.from('subscriptions').select('tier').eq('user_id', user.id)
         .order('created_at', { ascending: false }).limit(1).maybeSingle();
-      if (sub) setTier(sub.tier);
+      const t = sub?.tier || 'free_trial';
+      setTier(t);
+      setChannels(t === 'free_trial' ? ['email'] : ['whatsapp', 'email']);
 
       const saved = sessionStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -61,8 +63,7 @@ export default function OnboardingPage() {
           const p = JSON.parse(saved);
           if (p.branch) setBranch(p.branch);
           if (p.d) setD(p.d);
-          if (p.skills) setSkills(p.skills);
-          if (p.channels) setChannels(p.channels);
+          if (p.channels && t !== 'free_trial') setChannels(p.channels);
           if (p.step) setStep(p.step);
         } catch { /* ignore */ }
       } else if (roleRow?.full_name) {
@@ -73,16 +74,13 @@ export default function OnboardingPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!loading) sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ branch, d, skills, channels, step }));
-  }, [branch, d, skills, channels, step, loading]);
+    if (!loading) sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ branch, d, channels, step }));
+  }, [branch, d, channels, step, loading]);
 
   const set = (k: string, v: any) => setD((prev) => ({ ...prev, [k]: v }));
-  const toggleSkill = (s: string) => setSkills((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
-  const toggleChannel = (c: string) => setChannels((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
-  const addCustomSkill = () => {
-    const s = customSkill.trim();
-    if (s && !skills.includes(s)) setSkills([...skills, s]);
-    setCustomSkill('');
+  const toggleChannel = (c: string) => {
+    if (isFree) return;
+    setChannels((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   };
 
   const addJob = () => set('workHistory', [...d.workHistory, { title: '', company: '', startYear: '', endYear: 'Present', description: '' }]);
@@ -118,18 +116,17 @@ export default function OnboardingPage() {
     const { error: insErr } = await supabase.from('client_materials').insert({
       user_id: user.id,
       built_from_survey: branch === 'no_cv',
-      survey_responses: branch === 'no_cv' ? { ...payload, skills } : null,
-      quick_fill: branch === 'has_cv' ? { ...payload, skills } : null,
+      survey_responses: branch === 'no_cv' ? payload : null,
+      quick_fill: branch === 'has_cv' ? payload : null,
       hidden_skills_notes: payload.hiddenTalents || payload.standout || null,
       dream_job: payload.dreamJob || null,
       cv_review_status: 'drafting',
       cv_due_at: dueAt,
-      delivery_channels: channels.length ? channels : ['whatsapp'],
+      delivery_channels: channels.length ? channels : ['email'],
       uploaded_cv_url: uploadedPath,
     });
     if (insErr) { setError(insErr.message); setSaving(false); return; }
 
-    // Kick off the AI first draft (best-effort; staff can also trigger later).
     try {
       const { data: { session } } = await supabase.auth.getSession();
       await fetch('/api/ai/draft-cv', {
@@ -137,7 +134,7 @@ export default function OnboardingPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
         body: JSON.stringify({}),
       });
-    } catch { /* ignore — non-blocking */ }
+    } catch { /* non-blocking */ }
 
     sessionStorage.removeItem(STORAGE_KEY);
     setSuccess(true);
@@ -154,13 +151,31 @@ export default function OnboardingPage() {
     });
   };
 
+  const validateStep = () => {
+    if (step === 1) {
+      if (!d.fullName || !d.whatsapp || !d.street || !d.cityState)
+        return 'Please fill your name, WhatsApp number, street address and city/state.';
+    }
+    if (step === 2 && !d.dreamJob) return 'Please tell us your dream job or target role.';
+    if (step === 3) {
+      if (!d.eduLevel) return 'Please select your highest education level.';
+      if (d.eduLevel !== 'no_formal' && !d.fieldOfStudy) return 'Please enter your field of study.';
+      if (d.eduLevel !== 'no_formal' && !d.gradYear) return 'Please select the year you finished (or its status).';
+    }
+    if (step === 5 && !d.skills.trim()) return 'Please list at least a few skills.';
+    return '';
+  };
+
   const next = () => {
+    const v = validateStep();
+    if (v) { setError(v); return; }
     setError('');
     if (step < 7) setStep(step + 1);
     else { setSaving(true); finalize(d); }
   };
 
   const selectClass = 'w-full rounded-xl border border-line bg-white px-4 py-2.5 text-[0.95rem] outline-none focus:border-green focus:ring-2 focus:ring-green/15';
+  const noFormal = d.eduLevel === 'no_formal';
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-cream text-muted">
@@ -172,13 +187,10 @@ export default function OnboardingPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-cream px-6">
         <div className="max-w-md rounded-3xl border border-line bg-white p-10 text-center shadow-lift">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-green-light text-green">
-            <CheckCircle2 className="h-8 w-8" />
-          </div>
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-green-light text-green"><CheckCircle2 className="h-8 w-8" /></div>
           <h1 className="mt-5 text-2xl font-extrabold">You&apos;re all set!</h1>
           <p className="mt-2 text-muted">
-            We&apos;ve got your details and started drafting your professional CV. It&apos;ll be ready within{' '}
-            {CV_TURNAROUND_HOURS[tier] ?? 48} hours — track it on your dashboard.
+            We&apos;ve got your details and started drafting your professional CV. It&apos;ll be ready within {CV_TURNAROUND_HOURS[tier] ?? 48} hours — track it on your dashboard.
           </p>
           <div className="mt-7"><Button href="/dashboard" fullWidth>Go to dashboard</Button></div>
         </div>
@@ -194,9 +206,7 @@ export default function OnboardingPage() {
         {plan && (
           <div className="mb-5 flex items-center justify-between rounded-2xl border border-line bg-white p-4 shadow-soft">
             <p className="text-sm"><span className="text-muted">Your plan:</span> <span className="font-bold">{plan.name}</span></p>
-            <span className="rounded-full bg-green-light px-2.5 py-1 text-xs font-semibold text-green">
-              CV ready in {CV_TURNAROUND_HOURS[tier] ?? 48}h
-            </span>
+            <span className="rounded-full bg-green-light px-2.5 py-1 text-xs font-semibold text-green">CV ready in {CV_TURNAROUND_HOURS[tier] ?? 48}h</span>
           </div>
         )}
 
@@ -220,7 +230,6 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* HAS CV */}
           {branch === 'has_cv' && (
             <div>
               <h1 className="text-2xl font-extrabold">Upload your CV</h1>
@@ -234,11 +243,11 @@ export default function OnboardingPage() {
                   {cvFile && <p className="mt-1.5 flex items-center gap-1.5 text-xs text-green"><Check className="h-3.5 w-3.5" /> {cvFile.name}</p>}
                 </div>
                 <FormField label="WhatsApp number" value={d.whatsapp} onChange={(e) => set('whatsapp', e.target.value)} required helperText="e.g. 08012345678" />
-                <FormField label="Street address" value={d.street} onChange={(e) => set('street', e.target.value)} required helperText="This goes on your CV. e.g. 12 Allen Avenue, Ikeja" />
+                <FormField label="Street address" value={d.street} onChange={(e) => set('street', e.target.value)} required helperText="Goes on your CV. e.g. 12 Allen Avenue, Ikeja" />
                 <FormField label="City / State" value={d.cityState} onChange={(e) => set('cityState', e.target.value)} required helperText="e.g. Lagos" />
-                <FormField label="Your dream job / target role" value={d.dreamJob} onChange={(e) => set('dreamJob', e.target.value)} required helperText="The role we tailor everything to. e.g. Customer Service Representative" />
-                <FormField label="Anything great about you that's NOT on your CV?" as="textarea" value={d.hiddenTalents} onChange={(e) => set('hiddenTalents', e.target.value)} helperText="Often what gets people hired. Write it however you like — no perfect wording needed." />
-                <ChannelPicker channels={channels} toggle={toggleChannel} />
+                <FormField label="Your dream job / target role" value={d.dreamJob} onChange={(e) => set('dreamJob', e.target.value)} required helperText="What we tailor everything to. e.g. Customer Service Representative" />
+                <FormField label="Anything great about you that's NOT on your CV?" as="textarea" value={d.hiddenTalents} onChange={(e) => set('hiddenTalents', e.target.value)} helperText="Often what gets people hired. Write it however you like." />
+                <ChannelPicker channels={channels} toggle={toggleChannel} locked={isFree} />
                 <div className="mt-6 flex gap-3">
                   <Button variant="secondary" onClick={() => setBranch('none')}><ArrowLeft className="h-4 w-4" /> Back</Button>
                   <Button onClick={submitHasCv} disabled={saving} fullWidth>{saving ? 'Submitting…' : 'Submit & start my CV'}</Button>
@@ -247,7 +256,6 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* NO CV SURVEY */}
           {branch === 'no_cv' && (
             <div>
               <div className="mb-6">
@@ -271,7 +279,7 @@ export default function OnboardingPage() {
                   <FormField label="Other phone number (optional)" value={d.phone} onChange={(e) => set('phone', e.target.value)} helperText="Leave blank if you don't have one." />
                   <FormField label="Street address" value={d.street} onChange={(e) => set('street', e.target.value)} required helperText="e.g. 12 Allen Avenue, Ikeja" />
                   <FormField label="City / State" value={d.cityState} onChange={(e) => set('cityState', e.target.value)} required helperText="e.g. Lagos" />
-                  <FormField label="LinkedIn (optional)" value={d.linkedin} onChange={(e) => set('linkedin', e.target.value)} helperText="Paste your profile link, or leave blank if you don't have one." />
+                  <FormField label="LinkedIn (optional)" value={d.linkedin} onChange={(e) => set('linkedin', e.target.value)} helperText="Paste your profile link, or leave blank." />
                 </div>
               )}
 
@@ -316,8 +324,26 @@ export default function OnboardingPage() {
                       <option value="prof_cert">Professional certification only</option>
                     </select>
                   </div>
-                  <FormField label="Field of study (optional)" value={d.fieldOfStudy} onChange={(e) => set('fieldOfStudy', e.target.value)} helperText="e.g. Accounting. Leave blank if not applicable." />
-                  <FormField label="Year finished (optional)" value={d.gradYear} onChange={(e) => set('gradYear', e.target.value)} helperText="e.g. 2021, or 'in progress'." />
+
+                  {!noFormal && (
+                    <>
+                      <FormField label="Field of study" value={d.fieldOfStudy} onChange={(e) => set('fieldOfStudy', e.target.value)} required helperText="e.g. Accounting, Business Admin, Computer Science." />
+                      <div className="mb-4">
+                        <label className="mb-1.5 block text-sm font-semibold">Year finished</label>
+                        <select value={d.gradYear} onChange={(e) => set('gradYear', e.target.value)} className={selectClass}>
+                          <option value="">Select…</option>
+                          <option value="In progress">In progress</option>
+                          <option value="Not completed">Not completed / dropped out</option>
+                          {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                    </>
+                  )}
+                  {noFormal && (
+                    <div className="rounded-xl border border-line bg-cream p-4 text-sm text-muted">
+                      That&apos;s completely fine — we&apos;ll build your CV around your skills and experience. Tap Next.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -326,8 +352,7 @@ export default function OnboardingPage() {
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-xl font-extrabold">Work experience</h2>
                     <label className="flex items-center gap-2 text-sm text-muted">
-                      <input type="checkbox" checked={d.hasNoExperience} onChange={(e) => set('hasNoExperience', e.target.checked)} />
-                      I have none
+                      <input type="checkbox" checked={d.hasNoExperience} onChange={(e) => set('hasNoExperience', e.target.checked)} /> I have none
                     </label>
                   </div>
                   {d.hasNoExperience ? (
@@ -357,28 +382,8 @@ export default function OnboardingPage() {
               {step === 5 && (
                 <div>
                   <h2 className="mb-1 text-xl font-extrabold">Skills &amp; languages</h2>
-                  <p className="mb-4 text-sm text-muted">Tap everything that sounds like you. Add your own at the bottom.</p>
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    {SKILL_OPTIONS.map((s) => {
-                      const on = skills.includes(s);
-                      return (
-                        <button key={s} type="button" onClick={() => toggleSkill(s)}
-                          className={cn('rounded-full border px-3 py-1.5 text-sm transition-colors',
-                            on ? 'border-green bg-green text-white' : 'border-line bg-white text-muted hover:border-green')}>
-                          {on && <Check className="mr-1 inline h-3.5 w-3.5" />}{s}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mb-4 flex gap-2">
-                    <input value={customSkill} onChange={(e) => setCustomSkill(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomSkill(); } }}
-                      placeholder="Add your own skill…" className={selectClass} />
-                    <Button variant="secondary" onClick={addCustomSkill}>Add</Button>
-                  </div>
-                  {skills.filter((s) => !SKILL_OPTIONS.includes(s)).length > 0 && (
-                    <p className="mb-4 text-xs text-muted">Added: {skills.filter((s) => !SKILL_OPTIONS.includes(s)).join(', ')}</p>
-                  )}
+                  <p className="mb-4 text-sm text-muted">List your skills separated by commas. Include soft skills too.</p>
+                  <FormField as="textarea" label="Your skills" value={d.skills} onChange={(e) => set('skills', e.target.value)} required helperText="e.g. Customer service, Microsoft Excel, Communication, Sales, Time management" />
                   <FormField label="Languages you speak" value={d.languages} onChange={(e) => set('languages', e.target.value)} helperText="e.g. English, Yoruba, Pidgin" />
                   <FormField label="Certifications / courses (optional)" value={d.certifications} onChange={(e) => set('certifications', e.target.value)} helperText="Any short courses or certificates. Leave blank if none." />
                 </div>
@@ -388,8 +393,8 @@ export default function OnboardingPage() {
                 <div>
                   <h2 className="mb-1 text-xl font-extrabold">What makes you stand out</h2>
                   <p className="mb-4 text-sm text-muted">Don&apos;t overthink it — write like you&apos;re talking to a friend. We&apos;ll shape it.</p>
-                  <FormField as="textarea" label="What are you good at that a certificate can't show?" value={d.hiddenTalents} onChange={(e) => set('hiddenTalents', e.target.value)} helperText="e.g. 'People trust me fast', 'I never give up on a problem', 'I'm great with customers'." />
-                  <FormField as="textarea" label="Where do you want to be in 2–3 years?" value={d.careerGoal} onChange={(e) => set('careerGoal', e.target.value)} helperText="e.g. 'A team lead', or 'stable job I can grow in'." />
+                  <FormField as="textarea" label="What are you good at that a certificate can't show?" value={d.hiddenTalents} onChange={(e) => set('hiddenTalents', e.target.value)} helperText="e.g. 'People trust me fast', 'I never give up', 'I'm great with customers'." />
+                  <FormField as="textarea" label="Where do you want to be in 2–3 years?" value={d.careerGoal} onChange={(e) => set('careerGoal', e.target.value)} helperText="e.g. 'A team lead', or 'a stable job I can grow in'." />
                   <FormField as="textarea" label="Why should someone hire you?" value={d.whyHireYou} onChange={(e) => set('whyHireYou', e.target.value)} helperText="Just be honest. e.g. 'I learn fast and I show up every day.'" />
                 </div>
               )}
@@ -398,7 +403,8 @@ export default function OnboardingPage() {
                 <div>
                   <h2 className="mb-1 text-xl font-extrabold">How should we reach you?</h2>
                   <p className="mb-4 text-sm text-muted">Where we send alerts about your CV and job applications.</p>
-                  <ChannelPicker channels={channels} toggle={toggleChannel} />
+                  <ChannelPicker channels={channels} toggle={toggleChannel} locked={isFree} />
+                  {isFree && <p className="mt-2 text-xs text-muted">Free Trial alerts are sent by email. Upgrade to add WhatsApp and SMS.</p>}
                   <div className="mt-4 rounded-xl border border-gold/40 bg-gold-light p-4 text-sm text-gold">
                     <Sparkles className="mr-1 inline h-4 w-4" />
                     Once you submit, our AI drafts your professional CV instantly, then a human refines it — ready within {CV_TURNAROUND_HOURS[tier] ?? 48} hours.
@@ -420,17 +426,20 @@ export default function OnboardingPage() {
   );
 }
 
-function ChannelPicker({ channels, toggle }: { channels: string[]; toggle: (c: string) => void }) {
+function ChannelPicker({ channels, toggle, locked }: { channels: string[]; toggle: (c: string) => void; locked?: boolean }) {
   return (
     <div>
       <label className="mb-2 block text-sm font-semibold">Alert channels</label>
       <div className="flex flex-wrap gap-2">
         {DELIVERY_CHANNELS.map((c) => {
           const on = channels.includes(c.id);
+          const disabled = locked && c.id !== 'email';
           return (
-            <button key={c.id} type="button" onClick={() => toggle(c.id)}
+            <button key={c.id} type="button" onClick={() => toggle(c.id)} disabled={locked}
               className={cn('rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                on ? 'border-green bg-green text-white' : 'border-line bg-white text-muted hover:border-green')}>
+                on ? 'border-green bg-green text-white' : 'border-line bg-white text-muted',
+                locked ? 'cursor-not-allowed opacity-60' : 'hover:border-green',
+                disabled && 'opacity-40')}>
               {on && <Check className="mr-1 inline h-3.5 w-3.5" />}{c.label}
             </button>
           );
