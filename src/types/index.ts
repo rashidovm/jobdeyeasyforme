@@ -23,6 +23,7 @@ export interface Profile {
   email: string;
   role: UserRole;
   can_post_jobs?: boolean;
+  assigned_staff_id?: string | null;
   whatsapp_number: string | null;
   phone_number: string | null;
   city_state: string | null;

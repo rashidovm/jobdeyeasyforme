@@ -100,6 +100,7 @@ export default function ApplicationWorkPage() {
   const deliver = async () => {
     setError(''); setMsg('');
     if (!sub) { setError('No subscription found for this client.'); return; }
+    if (sub.status !== 'active') { setError('This job seeker\u2019s payment isn\u2019t confirmed yet. An admin must confirm it before delivering.'); return; }
     if (sub.applications_used >= sub.applications_limit) {
       setError('This client has used all their applications for this cycle. They must top up or upgrade before a new one can be delivered.');
       return;

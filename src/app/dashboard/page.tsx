@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import { Clock, Sparkles, FileCheck2, MessageSquare, Zap, Bell, LifeBuoy } from 'lucide-react';
 import { supabase, buildWhatsappLink } from '@/lib/supabase';
-import { Profile, Subscription, Application, ClientMaterial, CvDeliverable, Message, Notification } from '@/types';
-import { STATUS_MAP, PLANS, TOPUP_PRICES, CHAT_REPLY_WINDOW_HOURS } from '@/lib/constants';
+import { Profile, Subscription, Application, ClientMaterial, CvDeliverable, Message, Notification, JobPosting } from '@/types';
+import { STATUS_MAP, PLANS, TOPUP_PRICES } from '@/lib/constants';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
 import ErrorBox from '@/components/ui/ErrorBox';
@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [cvDeliverable, setCvDeliverable] = useState<CvDeliverable | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [postings, setPostings] = useState<JobPosting[]>([]);
   const [tab, setTab] = useState<Tab>('apps');
   const router = useRouter();
 
@@ -65,7 +66,19 @@ export default function DashboardPage() {
           .from('subscriptions').select('*').eq('user_id', user.id)
           .order('created_at', { ascending: false }).limit(1).single();
         if (subErr) throw subErr;
-        setSubscription(subData);
+
+        let activeSub = subData as Subscription;
+        // If a paid cycle has ended, drop back to Free Trial.
+        if (activeSub && activeSub.tier !== 'free_trial' && activeSub.renews_at && new Date(activeSub.renews_at) < new Date()) {
+          const { data: reverted } = await supabase.from('subscriptions')
+            .update({ tier: 'free_trial', applications_limit: 1, applications_used: 0, status: 'active', renews_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() })
+            .eq('id', activeSub.id).select().single();
+          if (reverted) activeSub = reverted as Subscription;
+        }
+        setSubscription(activeSub);
+
+        const { data: jp } = await supabase.from('job_postings').select('*').eq('filled', false).order('created_at', { ascending: false });
+        setPostings((jp as JobPosting[]) || []);
 
         const { data: appData, error: appErr } = await supabase
           .from('applications').select('*, job_postings(*)').eq('user_id', user.id)
@@ -142,10 +155,14 @@ export default function DashboardPage() {
   const upgradePlans = PLANS.filter((p) => p.price > (currentPlan?.price || 0));
   const outOfApps = limit > 0 && used >= limit;
   const topupPrice = TOPUP_PRICES[subscription?.tier || 'free_trial'] || 0;
+  const isPaidPending = !!subscription && subscription.tier !== 'free_trial' && subscription.status === 'pending';
+  const daysLeft = subscription?.renews_at && subscription.tier !== 'free_trial'
+    ? Math.max(0, Math.ceil((new Date(subscription.renews_at).getTime() - Date.now()) / 86400000)) : null;
+  const dreamKw = (material?.dream_job || '').toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+  const suggested = postings.filter((j) => dreamKw.some((k) => `${j.title} ${j.public_teaser} ${j.company}`.toLowerCase().includes(k))).slice(0, 4);
 
-  const teamMsgs = messages.filter((m) => m.sender_role !== 'client');
-  const lastTeamAt = teamMsgs.length ? new Date(teamMsgs[teamMsgs.length - 1].created_at).getTime() : 0;
-  const canReply = lastTeamAt > 0 && Date.now() - lastTeamAt < CHAT_REPLY_WINDOW_HOURS * 3600 * 1000;
+  const lastMsg = messages[messages.length - 1];
+  const canReply = !!lastMsg && lastMsg.sender_role !== 'client';
   const unreadCount = messages.filter((m) => m.sender_role !== 'client' && !m.read_by_client).length;
 
   const navItems: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }>; badge?: number }[] = [
@@ -199,10 +216,15 @@ export default function DashboardPage() {
         </a>
 
         <div className="mt-auto">
-          <p className="mb-1.5 text-xs text-white/50">Applications used: {used} / {limit}</p>
+          <p className="mb-1.5 text-xs font-semibold text-white/80">
+            {limit - used > 0 ? `${limit - used} application${limit - used === 1 ? '' : 's'} left this cycle` : 'No applications left'}
+          </p>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-green" style={{ width: `${usagePct}%` }} />
           </div>
+          {daysLeft !== null && (
+            <p className="mt-2 text-xs text-white/50">{daysLeft} day{daysLeft === 1 ? '' : 's'} left in your plan</p>
+          )}
           <button
             onClick={handleSignOut}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 py-2 text-xs text-white/70 transition-colors hover:bg-white/5"
@@ -226,7 +248,30 @@ export default function DashboardPage() {
 
         {tab === 'apps' && (
           <div>
+            {isPaidPending && (
+              <div className="mb-6 rounded-2xl border border-gold/40 bg-gold-light p-5 text-sm text-gold">
+                <p className="font-bold">Payment being confirmed</p>
+                <p className="mt-1">Your {currentPlan?.name} plan is active on your account, but we&apos;re still confirming your payment. Your CV and applications start once it&apos;s confirmed — usually quickly. Questions? Message us on WhatsApp.</p>
+              </div>
+            )}
+
             {material && <CvCard material={material} deliverable={cvDeliverable} />}
+
+            {suggested.length > 0 && (
+              <div className="mb-6 rounded-2xl border border-line bg-white p-6 shadow-soft">
+                <h2 className="mb-1 font-bold">Jobs that may fit you</h2>
+                <p className="mb-4 text-sm text-muted">Roles matching your goal ({material?.dream_job}). Our team also uses these to prepare your applications.</p>
+                <ul className="space-y-3">
+                  {suggested.map((j) => (
+                    <li key={j.id} className="rounded-xl border border-line p-3">
+                      <p className="text-sm font-semibold">{j.title}</p>
+                      <p className="text-xs text-muted">{j.company} · {j.location}{j.work_mode ? ` · ${j.work_mode}` : ''}</p>
+                      <p className="mt-1 line-clamp-2 text-sm text-muted">{j.public_teaser}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <h1 className="mb-6 text-2xl font-extrabold">My Applications</h1>
             {applications.length === 0 ? (
@@ -606,7 +651,7 @@ function MessagesPanel({ messages, onSend, meId, canReply }: { messages: Message
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 py-2 text-center">
-            <p className="text-xs text-muted">This isn&apos;t a live chat — the team replies here, and replies stay open for a few hours after they message you.</p>
+            <p className="text-xs text-muted">This isn&apos;t a live chat — you can reply once the team messages you, and it locks again after you reply. To start a new question, open a support ticket.</p>
             <Button variant="secondary" size="sm" onClick={() => setTicketOpen(true)}><LifeBuoy className="h-4 w-4" /> Open a support ticket</Button>
           </div>
         )}

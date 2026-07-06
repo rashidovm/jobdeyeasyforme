@@ -138,3 +138,19 @@ Run **`supabase_pass4_setup.sql`** in the SQL Editor. It adds: staff posting per
 - **Top-up only unlocks when applications are fully used.**
 - **Gated chat**: seekers reply only within ~3 hours of the team's last message, otherwise they open a **support ticket** to initiate. Unread badge on the Messages tab.
 - **Job postings**: on-site / remote / hybrid, an application-close date, and a "role filled" toggle. **Staff can post jobs only if an admin enables it** (toggle on the Staff page).
+
+---
+
+## Pass 5 — Payment confirmation, staff allocation, countdown
+
+### One-time Supabase setup
+Run **`supabase_pass5_setup.sql`**. It adds seeker→staff assignment and makes paid signups start as **pending** (Free Trial stays active).
+
+### What's new
+- **Admin confirms payment.** Paid signups are **Pending** — the seeker can log in, but the CV and applications aren't delivered until an admin clicks **Confirm payment**. Free Trial is active immediately.
+- **Assign a job seeker to a staff member** on their admin page. Staff only see the seekers assigned to them.
+- **Suggested jobs** matching the seeker's dream role, on both the admin page and the seeker's dashboard.
+- **Subscription countdown** on the seeker dashboard and admin page; when the 30-day cycle ends, the account reverts to Free Trial automatically.
+- **Friendlier wording** — "5 applications left this cycle" instead of "1/7".
+- **Turn-based chat** — the seeker can reply only after the team messages, and it locks again after they reply. Support tickets to start a new question.
+- **Work mode** field given full width on the job form.

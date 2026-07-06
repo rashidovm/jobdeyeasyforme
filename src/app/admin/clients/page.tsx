@@ -4,19 +4,24 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Search, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAdmin } from '@/lib/adminContext';
 import { Profile, Subscription } from '@/types';
 import { PLANS } from '@/lib/constants';
+import { cn } from '@/lib/cn';
 
 export default function ClientsPage() {
+  const { profile: me } = useAdmin();
   const [clients, setClients] = useState<Profile[]>([]);
   const [subs, setSubs] = useState<Record<string, Subscription>>({});
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
 
   useEffect(() => {
+    if (!me) return;
     (async () => {
-      const { data: profs } = await supabase
-        .from('profiles').select('*').eq('role', 'client').order('created_at', { ascending: false });
+      let query = supabase.from('profiles').select('*').eq('role', 'client').order('created_at', { ascending: false });
+      if (me.role === 'staff') query = query.eq('assigned_staff_id', me.id);
+      const { data: profs } = await query;
       const list = (profs as Profile[]) || [];
       setClients(list);
 
@@ -34,7 +39,7 @@ export default function ClientsPage() {
       }
       setLoading(false);
     })();
-  }, []);
+  }, [me]);
 
   const filtered = clients.filter(
     (c) =>
@@ -81,8 +86,8 @@ export default function ClientsPage() {
                     <div className="hidden text-right sm:block">
                       <p className="text-xs font-semibold">{planName(sub?.tier)}</p>
                       {sub && (
-                        <p className="text-xs text-muted">
-                          {sub.applications_used}/{sub.applications_limit} used
+                        <p className={cn('text-xs', sub.status === 'active' ? 'text-green' : 'text-gold')}>
+                          {sub.status === 'active' ? `${sub.applications_used}/${sub.applications_limit} used` : 'Payment pending'}
                         </p>
                       )}
                     </div>

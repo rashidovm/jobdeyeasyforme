@@ -43,11 +43,39 @@ export default function ClientDetailPage() {
   const [cv, setCv] = useState({ final_cv_url: '', final_cover_letter_url: '' });
   const [plan, setPlan] = useState({ tier: 'free_trial', used: 0, limit: 1 });
   const [msgText, setMsgText] = useState('');
+  const [assignedStaffId, setAssignedStaffId] = useState('');
   const [error, setError] = useState('');
   const [flashMsg, setFlashMsg] = useState('');
   const [busy, setBusy] = useState(false);
 
   const flash = (m: string) => { setFlashMsg(m); setTimeout(() => setFlashMsg(''), 2500); };
+
+  const assignStaff = async (staffId: string) => {
+    setAssignedStaffId(staffId);
+    await supabase.from('profiles').update({ assigned_staff_id: staffId || null }).eq('id', clientId);
+    flash(staffId ? 'Job seeker assigned.' : 'Unassigned.');
+  };
+
+  const confirmPayment = async () => {
+    if (!sub) return;
+    setBusy(true);
+    const { error: e } = await supabase.from('subscriptions').update({ status: 'active' }).eq('id', sub.id);
+    setBusy(false);
+    if (e) { setError(e.message); return; }
+    flash('Payment confirmed — subscription is now active.'); load();
+  };
+
+  const quickCreateApp = async (jid: string) => {
+    if (!sub) { setError('No subscription.'); return; }
+    setBusy(true);
+    const { error: e } = await supabase.from('applications').insert({
+      user_id: clientId, subscription_id: sub.id, job_id: jid,
+      assigned_to: assignedStaffId || null, status: 'queued', why_picked: [],
+    });
+    setBusy(false);
+    if (e) { setError(e.message); return; }
+    flash('Application created from suggested job.'); load();
+  };
 
   const load = async () => {
     const [{ data: c }, { data: s }, { data: m }, { data: dv }, { data: a }, { data: n }] = await Promise.all([
@@ -62,12 +90,13 @@ export default function ClientDetailPage() {
     setDeliverable(dv as CvDeliverable); setApps((a as Application[]) || []); setNotifs((n as Notification[]) || []);
     if (dv) { const x = dv as CvDeliverable; setCv({ final_cv_url: x.final_cv_url || '', final_cover_letter_url: x.final_cover_letter_url || '' }); }
     if (s) { const x = s as Subscription; setPlan({ tier: x.tier, used: x.applications_used, limit: x.applications_limit }); }
+    if (c) setAssignedStaffId((c as Profile).assigned_staff_id || '');
+
+    const { data: j } = await supabase.from('job_postings').select('*').eq('filled', false).order('created_at', { ascending: false });
+    setJobs((j as JobPosting[]) || []);
     if (isAdmin) {
-      const [{ data: j }, { data: st }] = await Promise.all([
-        supabase.from('job_postings').select('*').order('created_at', { ascending: false }),
-        supabase.from('profiles').select('*').eq('role', 'staff'),
-      ]);
-      setJobs((j as JobPosting[]) || []); setStaff((st as Profile[]) || []);
+      const { data: st } = await supabase.from('profiles').select('*').eq('role', 'staff');
+      setStaff((st as Profile[]) || []);
     }
     setLoading(false);
   };
@@ -104,6 +133,7 @@ export default function ClientDetailPage() {
 
   const deliverCv = async () => {
     setError('');
+    if (sub && sub.status !== 'active') { setError('Confirm this job seeker\u2019s payment before delivering.'); return; }
     if (!cv.final_cv_url || !cv.final_cover_letter_url) { setError('Add both the CV and cover letter links before delivering.'); return; }
     setBusy(true);
     await supabase.from('cv_deliverables').upsert(
@@ -188,6 +218,14 @@ export default function ClientDetailPage() {
 
   const planName = PLANS.find((p) => p.id === sub?.tier)?.name || '—';
   const remaining = sub ? Math.max(0, sub.applications_limit - sub.applications_used) : 0;
+  const subActive = sub?.status === 'active';
+  const isPaidPending = sub && sub.tier !== 'free_trial' && sub.status === 'pending';
+  const daysLeft = sub?.renews_at ? Math.max(0, Math.ceil((new Date(sub.renews_at).getTime() - Date.now()) / 86400000)) : null;
+  const dreamKw = (materials?.dream_job || '').toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+  const suggested = jobs.filter((j) => {
+    const hay = `${j.title} ${j.public_teaser} ${j.company}`.toLowerCase();
+    return dreamKw.some((k) => hay.includes(k));
+  }).slice(0, 5);
   const notifyMsg = `Hi ${client.full_name?.split(' ')[0] || 'there'}, your JobDeyEasy CV is ready. Please log in and check your dashboard: ${typeof window !== 'undefined' ? window.location.origin : ''}/dashboard`;
   const lastSent = (ch: string) => notifs.find((n) => n.channel === ch && n.context === 'cv');
 
@@ -213,11 +251,24 @@ export default function ClientDetailPage() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-green-light px-3 py-1 text-xs font-bold text-green">{planName}</span>
+            <span className={cn('rounded-full px-3 py-1 text-xs font-semibold', subActive ? 'bg-green-light text-green' : 'bg-gold-light text-gold')}>
+              {subActive ? 'Active' : 'Payment pending'}
+            </span>
             <span className="rounded-full bg-cream px-3 py-1 text-xs font-semibold text-muted">{remaining} of {sub?.applications_limit ?? 0} apps left</span>
+            {daysLeft !== null && sub?.tier !== 'free_trial' && (
+              <span className="rounded-full bg-cream px-3 py-1 text-xs font-semibold text-muted">{daysLeft} days left in cycle</span>
+            )}
           </div>
         </div>
+
+        {isPaidPending && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold/40 bg-gold-light p-3.5">
+            <p className="text-sm font-medium text-gold">Payment not confirmed yet. Nothing is delivered until you confirm.</p>
+            <Button size="sm" onClick={confirmPayment} disabled={busy}>Confirm payment &amp; activate</Button>
+          </div>
+        )}
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-sm">
           {materials?.dream_job && <p><span className="text-muted">Dream job:</span> <span className="font-semibold">{materials.dream_job}</span></p>}
           {materials?.delivery_channels && <p><span className="text-muted">Alerts via:</span> <span className="font-semibold capitalize">{materials.delivery_channels.join(', ')}</span></p>}
@@ -314,6 +365,25 @@ export default function ClientDetailPage() {
             </dl>
           </div>
 
+          {/* Suggested jobs matching the dream role */}
+          {suggested.length > 0 && (
+            <div className="rounded-2xl border border-line bg-white p-6 shadow-soft">
+              <h2 className="mb-1 font-bold">Suggested jobs for {materials?.dream_job || 'this seeker'}</h2>
+              <p className="mb-4 text-xs text-muted">Open roles that match their goal. Create an application, or find your own and attach it below.</p>
+              <ul className="space-y-3">
+                {suggested.map((j) => (
+                  <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{j.title}</p>
+                      <p className="truncate text-xs text-muted">{j.company} · {j.location}{j.work_mode ? ` · ${j.work_mode}` : ''}</p>
+                    </div>
+                    <Button size="sm" variant="secondary" onClick={() => quickCreateApp(j.id)} disabled={busy}>Create application</Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* chat */}
           <div className="rounded-2xl border border-line bg-white shadow-soft">
             <div className="flex items-center gap-2 border-b border-line px-6 py-4"><MessageSquare className="h-5 w-5 text-green" /><h2 className="font-bold">Chat with this job seeker</h2></div>
@@ -339,6 +409,17 @@ export default function ClientDetailPage() {
 
         {/* right column */}
         <div className="space-y-6">
+          {isAdmin && (
+            <div className="rounded-2xl border border-line bg-white p-6 shadow-soft">
+              <h2 className="mb-3 font-bold">Assigned staff</h2>
+              <select value={assignedStaffId} onChange={(e) => assignStaff(e.target.value)} className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-sm outline-none focus:border-green focus:ring-2 focus:ring-green/15">
+                <option value="">Unassigned</option>
+                {staff.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+              </select>
+              <p className="mt-2 text-xs text-muted">Staff only see the job seekers assigned to them.</p>
+            </div>
+          )}
+
           {isAdmin && (
             <div className="rounded-2xl border border-line bg-white p-6 shadow-soft">
               <h2 className="mb-1 font-bold">Plan</h2>

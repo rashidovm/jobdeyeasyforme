@@ -97,15 +97,13 @@ export default function JobsPage() {
               <FormField label="Location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} required />
             </div>
             <FormField label="Salary (optional)" value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} placeholder="₦150,000 – ₦250,000" />
-            <div className="mb-4 flex gap-4">
-              <div className="flex-1">
-                <label className="mb-1.5 block text-sm font-semibold">Work mode</label>
-                <select value={form.work_mode} onChange={(e) => setForm({ ...form, work_mode: e.target.value })} className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-[0.95rem] outline-none focus:border-green focus:ring-2 focus:ring-green/15">
-                  {WORK_MODES.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
-                </select>
-              </div>
-              <FormField label="Applications close (optional)" type="datetime-local" value={form.closes_at} onChange={(e) => setForm({ ...form, closes_at: e.target.value })} />
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-semibold">Work mode</label>
+              <select value={form.work_mode} onChange={(e) => setForm({ ...form, work_mode: e.target.value })} className="w-full rounded-xl border border-line bg-white px-4 py-2.5 text-[0.95rem] outline-none focus:border-green focus:ring-2 focus:ring-green/15">
+                {WORK_MODES.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+              </select>
             </div>
+            <FormField label="Applications close (optional)" type="datetime-local" value={form.closes_at} onChange={(e) => setForm({ ...form, closes_at: e.target.value })} />
             <FormField label="Source link" value={form.source_link} onChange={(e) => setForm({ ...form, source_link: e.target.value })} placeholder="https://…" required />
             <FormField as="textarea" label="Public teaser" value={form.public_teaser} onChange={(e) => setForm({ ...form, public_teaser: e.target.value })} helperText="Short blurb shown on the public jobs page." required />
             <FormField as="textarea" label="Internal description" value={form.internal_description} onChange={(e) => setForm({ ...form, internal_description: e.target.value })} helperText="Full details your staff use to write the application." required />
