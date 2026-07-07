@@ -17,11 +17,14 @@ function isNew(created?: string) {
 export default function JobsBoardPage() {
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authed, setAuthed] = useState(false);
   const [q, setQ] = useState('');
   const [mode, setMode] = useState('all');
 
   useEffect(() => {
     (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setAuthed(!!user);
       const { data } = await supabase
         .from('job_postings')
         .select('id, title, company, location, salary, work_mode, public_teaser, closes_at, created_at, filled')
@@ -43,15 +46,21 @@ export default function JobsBoardPage() {
       <header className="sticky top-0 z-40 border-b border-line bg-cream/85 backdrop-blur-md">
         <div className="container-tight flex h-16 items-center justify-between">
           <Logo />
-          <Button href="/signup" size="sm">Let us apply for you</Button>
+          {authed
+            ? <Button href="/dashboard" variant="secondary" size="sm">← Back to dashboard</Button>
+            : <Button href="/signup" size="sm">Let us apply for you</Button>}
         </div>
       </header>
 
       <section className="container-tight py-12">
         <div className="max-w-2xl">
           <span className="eyebrow">Live roles</span>
-          <h1 className="mt-3 text-3xl font-extrabold md:text-4xl">Jobs we&apos;re helping people land</h1>
-          <p className="mt-3 text-muted">Real roles across Nigeria. See one you like? We&apos;ll prepare your tailored CV, cover letter, and a ready-to-send email — you just hit Send.</p>
+          <h1 className="display mt-4 text-4xl md:text-5xl">{authed ? 'Browse jobs' : "Jobs we're helping people land"}</h1>
+          <p className="mt-3 text-muted">
+            {authed
+              ? 'Fresh roles across Nigeria. Your team uses these to prepare your applications — you just hit Send.'
+              : "Real roles across Nigeria. See one you like? We'll prepare your tailored CV, cover letter, and a ready-to-send email — you just hit Send."}
+          </p>
         </div>
 
         <div className="mt-8 flex flex-wrap gap-3">

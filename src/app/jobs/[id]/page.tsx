@@ -15,9 +15,12 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<JobPosting | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
     (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setAuthed(!!user);
       const { data } = await supabase
         .from('job_postings')
         .select('id, title, company, location, salary, work_mode, public_teaser, description, source_link, closes_at, filled')
@@ -44,7 +47,7 @@ export default function JobDetailPage() {
       <header className="sticky top-0 z-40 border-b border-line bg-cream/85 backdrop-blur-md">
         <div className="container-tight flex h-16 items-center justify-between">
           <Logo />
-          <Button href="/jobs" variant="ghost" size="sm"><ArrowLeft className="h-4 w-4" /> All jobs</Button>
+          <Button href={authed ? '/dashboard' : '/jobs'} variant="ghost" size="sm"><ArrowLeft className="h-4 w-4" /> {authed ? 'Dashboard' : 'All jobs'}</Button>
         </div>
       </header>
 
@@ -83,14 +86,22 @@ export default function JobDetailPage() {
               )}
             </div>
 
-            <div className="mt-8 rounded-2xl border border-green/30 bg-green-light p-6 text-center">
-              <h2 className="text-xl font-extrabold">Want this job? Let us do the hard part.</h2>
-              <p className="mx-auto mt-2 max-w-md text-sm text-green-dark">We&apos;ll tailor your CV and cover letter to this exact role and hand you a ready-to-send email. You just hit Send.</p>
-              <div className="mt-5 flex flex-wrap justify-center gap-3">
-                <Button href="/signup"><Send className="h-4 w-4" /> Start free trial</Button>
-                <Button href={buildWhatsappLink(`Hi! I'm interested in the ${job.title} role at ${job.company}. Can you help me apply?`)} variant="whatsapp"><MessageCircle className="h-4 w-4" /> Ask on WhatsApp</Button>
+            {authed ? (
+              <div className="mt-8 rounded-2xl border border-green/30 bg-green-light p-6 text-center">
+                <h2 className="text-xl font-extrabold text-green-dark">Want us to apply to this for you?</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm text-green-dark">Message your team from your dashboard and we&apos;ll prepare a tailored application for this role.</p>
+                <div className="mt-5 flex justify-center"><Button href="/dashboard">← Back to dashboard</Button></div>
               </div>
-            </div>
+            ) : (
+              <div className="mt-8 rounded-2xl border border-green/30 bg-green-light p-6 text-center">
+                <h2 className="text-xl font-extrabold">Want this job? Let us do the hard part.</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm text-green-dark">We&apos;ll tailor your CV and cover letter to this exact role and hand you a ready-to-send email. You just hit Send.</p>
+                <div className="mt-5 flex flex-wrap justify-center gap-3">
+                  <Button href="/signup"><Send className="h-4 w-4" /> Start free trial</Button>
+                  <Button href={buildWhatsappLink(`Hi! I'm interested in the ${job.title} role at ${job.company}. Can you help me apply?`)} variant="whatsapp"><MessageCircle className="h-4 w-4" /> Ask on WhatsApp</Button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </section>

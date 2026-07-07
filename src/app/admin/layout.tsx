@@ -62,13 +62,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <AdminContext.Provider value={{ profile }}>
       <div className="min-h-screen bg-paper">
         {/* Sidebar (desktop) */}
-        <aside className="fixed left-0 top-0 hidden h-screen w-[240px] flex-col gap-6 border-r border-line bg-white p-5 lg:flex">
-          <Logo />
-          <div className="flex items-center gap-2 rounded-xl bg-green-light px-3 py-2 text-xs font-semibold text-green">
+        <aside className="grain fixed left-0 top-0 hidden h-screen w-[248px] flex-col gap-6 overflow-hidden bg-forest p-5 text-cream lg:flex">
+          <div className="relative"><Logo invert /></div>
+          <div className="relative flex items-center gap-2 rounded-xl border border-cream/10 bg-cream/[0.06] px-3 py-2 text-xs font-semibold text-gold-bright">
             <ShieldCheck className="h-4 w-4" />
             {isAdmin ? 'Admin' : 'Staff'} · {profile.full_name}
           </div>
-          <nav className="flex flex-col gap-1">
+          <nav className="relative flex flex-col gap-1">
             {nav.map((n) => {
               const active = pathname === n.href || (n.href !== '/admin' && pathname.startsWith(n.href));
               return (
@@ -77,7 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   href={n.href}
                   className={cn(
                     'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
-                    active ? 'bg-green text-white' : 'text-muted hover:bg-black/5 hover:text-ink'
+                    active ? 'bg-green text-white shadow-soft' : 'text-cream/60 hover:bg-cream/5 hover:text-cream'
                   )}
                 >
                   <n.icon className="h-4 w-4" /> {n.label}
@@ -87,7 +87,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </nav>
           <button
             onClick={signOut}
-            className="mt-auto flex items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-sm text-muted transition-colors hover:bg-black/5"
+            className="relative mt-auto flex items-center gap-2 rounded-xl border border-cream/15 px-3 py-2.5 text-sm text-cream/70 transition-colors hover:bg-cream/5"
           >
             <LogOut className="h-4 w-4" /> Sign out
           </button>
@@ -125,7 +125,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        <main className="px-4 py-6 lg:ml-[240px] lg:px-8 lg:py-8">{children}</main>
+        <main className="px-4 py-6 lg:ml-[248px] lg:px-8 lg:py-8">{children}</main>
       </div>
     </AdminContext.Provider>
   );

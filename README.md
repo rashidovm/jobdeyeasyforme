@@ -191,3 +191,20 @@ Run **`supabase_pass7_setup.sql`**. It fixes application delete, adds a public j
 ## Pass 8 — Premium visual redesign (landing + design system)
 
 New design language: warm cream reading surface, **deep forest-green** premium anchor sections, gold accent used sparingly, and an editorial **Fraunces** display serif paired with Plus Jakarta Sans. Signature motif: a **flight-path arc** (the "Send") that draws across the hero and recurs as connective tissue. Buttons, shadows, and color tokens were refined globally, so every screen inherits the warmer, more premium base. The marketing landing page (nav, hero, sections, CTA, footer) is fully redesigned.
+
+---
+
+## Pass 8b — App-wide redesign + ticket/jobs/naming fixes
+
+### One-time Supabase setup
+Run **`supabase_pass8_setup.sql`** (ticket handler assignment + support display names).
+
+### Design
+- Editorial **Fraunces** serif now on **every heading across the whole app** (dashboard, admin, auth, jobs) — the app-wide personality change.
+- **Auth pages** rebuilt as a split-screen editorial layout (forest panel + flight motif).
+- **Dashboard and admin sidebars** restyled to the warm premium **forest** tone (was cold near-black / plain white).
+
+### Fixes
+- **Jobs page is auth-aware:** logged-in users see "Browse jobs" + "Back to dashboard" — no marketing "Let us apply for you" / signup CTA.
+- **Tickets:** staff/admin can open tickets (assigned to opener); the **handler's name shows** ("Handled by …"); only an **admin can close/reopen**; staff can reply.
+- **Chat & tickets show "Customer Support · [staff name]"** to the seeker (single friendly label + the real name).

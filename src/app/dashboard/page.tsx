@@ -190,8 +190,8 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-cream">
       {/* Desktop sidebar */}
-      <aside className="fixed left-0 top-0 hidden h-screen w-[260px] flex-col gap-6 bg-ink p-6 text-white md:flex">
-        <div className="rounded-xl bg-white/10 p-2">
+      <aside className="grain fixed left-0 top-0 hidden h-screen w-[264px] flex-col gap-6 overflow-hidden bg-forest p-6 text-cream md:flex">
+        <div className="relative rounded-xl border border-cream/10 bg-cream/[0.06] p-2">
           <Logo invert />
         </div>
 
@@ -614,7 +614,11 @@ function MessagesPanel({ messages, onSend, meId, canReply }: { messages: Message
             return (
               <div key={m.id} className={cn('max-w-[80%] rounded-2xl px-3.5 py-2 text-sm',
                 mine ? 'ml-auto rounded-br-md bg-green-light text-green-dark' : 'mr-auto rounded-bl-md bg-paper text-ink')}>
-                {!mine && <p className="mb-0.5 text-[0.68rem] font-bold uppercase tracking-wide text-gold">JobDeyEasy team</p>}
+                {!mine && (
+                  <p className="mb-0.5 text-[0.68rem] font-bold uppercase tracking-wide text-gold">
+                    Customer Support{m.sender_name ? ` · ${m.sender_name}` : ''}
+                  </p>
+                )}
                 <p className="whitespace-pre-wrap">{m.body}</p>
                 <p className="mt-1 text-[0.62rem] text-muted">{new Date(m.created_at).toLocaleString()}</p>
               </div>
@@ -701,7 +705,7 @@ function TicketThread({ ticket, profile }: { ticket: Ticket; profile: Profile | 
               const mine = m.sender_role === 'client';
               return (
                 <div key={m.id} className={cn('max-w-[85%] rounded-2xl px-3 py-2 text-sm', mine ? 'ml-auto rounded-br-md bg-green-light text-green-dark' : 'mr-auto rounded-bl-md bg-paper text-ink')}>
-                  {!mine && <p className="text-[0.62rem] font-bold uppercase text-gold">Team</p>}
+                  {!mine && <p className="text-[0.62rem] font-bold uppercase text-gold">Customer Support{m.sender_name ? ` · ${m.sender_name}` : ''}</p>}
                   <p className="whitespace-pre-wrap">{m.body}</p>
                 </div>
               );

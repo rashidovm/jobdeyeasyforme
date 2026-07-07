@@ -128,6 +128,7 @@ export interface Message {
   thread_user_id: string;
   sender_id: string;
   sender_role: string;
+  sender_name?: string | null;
   body: string;
   read_by_client?: boolean;
   created_at: string;
@@ -150,6 +151,7 @@ export interface Ticket {
   body: string;
   status: 'open' | 'closed';
   response: string | null;
+  assigned_to?: string | null;
   created_at: string;
   updated_at?: string;
 }
@@ -160,6 +162,7 @@ export interface TicketMessage {
   ticket_id: string;
   sender_id: string;
   sender_role: string;
+  sender_name?: string | null;
   body: string;
   created_at: string;
 }

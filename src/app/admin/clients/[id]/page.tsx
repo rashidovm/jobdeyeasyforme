@@ -221,7 +221,7 @@ export default function ClientDetailPage() {
 
   const sendMessage = async () => {
     const body = msgText.trim(); if (!body || !me) return;
-    const { error: e } = await supabase.from('messages').insert({ thread_user_id: clientId, sender_id: me.id, sender_role: me.role, body, read_by_client: false });
+    const { error: e } = await supabase.from('messages').insert({ thread_user_id: clientId, sender_id: me.id, sender_role: me.role, sender_name: me.full_name, body, read_by_client: false });
     if (!e) { setMsgText(''); loadMessages(); } else setError(e.message);
   };
 

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LogIn } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import Logo from '@/components/ui/Logo';
+import AuthShell from '@/components/ui/AuthShell';
 import Button from '@/components/ui/Button';
 import FormField from '@/components/ui/FormField';
 import ErrorBox from '@/components/ui/ErrorBox';
@@ -29,64 +29,46 @@ function LoginForm() {
 
   const routeByRole = async (userId: string) => {
     const { data: roleRow } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
-    if (roleRow && (roleRow.role === 'admin' || roleRow.role === 'staff')) {
-      router.push('/admin');
-    } else {
-      router.push(nextPath);
-    }
+    if (roleRow && (roleRow.role === 'admin' || roleRow.role === 'staff')) router.push('/admin');
+    else router.push(nextPath);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    setError(''); setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else if (data.user) {
-      routeByRole(data.user.id);
-    }
+    if (error) { setError(error.message); setLoading(false); }
+    else if (data.user) routeByRole(data.user.id);
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-cream px-6 py-12">
-      <div className="mb-8">
-        <Logo />
-      </div>
-      <div className="w-full max-w-md rounded-3xl border border-line bg-white p-8 shadow-card sm:p-10">
-        <h1 className="text-center text-2xl font-extrabold">Welcome back</h1>
-        <p className="mt-1.5 text-center text-sm text-muted">Log in to check your applications.</p>
+    <AuthShell>
+      <span className="eyebrow">Welcome back</span>
+      <h1 className="display mt-3 text-4xl">Log in to your desk.</h1>
+      <p className="mt-2 text-sm text-muted">Check your applications and messages.</p>
 
-        <div className="mt-7">
-          <ErrorBox message={error} />
-          <form onSubmit={handleSubmit}>
-            <FormField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-            <FormField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
-            <Button type="submit" fullWidth disabled={loading} className="mt-2">
-              {loading ? 'Signing in…' : <>Sign in <LogIn className="h-4 w-4" /></>}
-            </Button>
-          </form>
-        </div>
-
-        <p className="mt-6 text-center text-sm text-muted">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="font-semibold text-green hover:underline">
-            Start free trial
-          </Link>
-        </p>
+      <div className="mt-8">
+        <ErrorBox message={error} />
+        <form onSubmit={handleSubmit}>
+          <FormField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+          <FormField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+          <Button type="submit" fullWidth disabled={loading} className="mt-2">
+            {loading ? 'Signing in…' : <>Sign in <LogIn className="h-4 w-4" /></>}
+          </Button>
+        </form>
       </div>
-    </main>
+
+      <p className="mt-6 text-sm text-muted">
+        Don&apos;t have an account?{' '}
+        <Link href="/signup" className="font-semibold text-green hover:underline">Start free trial</Link>
+      </p>
+    </AuthShell>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center bg-cream text-muted">Loading…</div>
-      }
-    >
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-cream text-muted">Loading…</div>}>
       <LoginForm />
     </Suspense>
   );
