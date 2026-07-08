@@ -436,7 +436,7 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-5">
                 {applications.map((app, appIdx) => {
-                  const status = STATUS_MAP[app.status];
+                  const status = STATUS_MAP[app.status] ?? { label: app.status || 'Unknown', color: '#4B5563', bg: '#F3F4F6', icon: 'Hourglass' };
                   const StatusIcon = STATUS_ICONS[status.icon] ?? Hourglass;
                   const isDelivered = ['sent_to_client', 'client_applied', 'interview', 'offer', 'rejected'].includes(app.status);
                   // applications are loaded newest-first, so number them oldest -> newest (Application 1, 2, 3…)
