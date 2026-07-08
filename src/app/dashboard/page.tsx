@@ -69,35 +69,52 @@ export default function DashboardPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
-      const { data: roleRow } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-      if (roleRow && (roleRow.role === 'admin' || roleRow.role === 'staff')) {
-        router.replace('/admin');
-        return;
-      }
-
-      const { data: materials } = await supabase
-        .from('client_materials').select('id').eq('user_id', user.id).maybeSingle();
-      if (!materials) {
-        router.push('/onboarding');
-        return;
-      }
-
       try {
-        const { data: profileData, error: profileErr } = await supabase
-          .from('profiles').select('*').eq('id', user.id).single();
-        if (profileErr) throw profileErr;
-        setProfile(profileData);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.push('/login');
+          return;
+        }
 
-        const { data: subData, error: subErr } = await supabase
-          .from('subscriptions').select('*').eq('user_id', user.id)
-          .order('created_at', { ascending: false }).limit(1).single();
+        const [{ data: roleRow }, { data: materials }] = await Promise.all([
+          supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+          supabase.from('client_materials').select('id').eq('user_id', user.id).maybeSingle(),
+        ]);
+
+        if (roleRow && (roleRow.role === 'admin' || roleRow.role === 'staff')) {
+          router.replace('/admin');
+          return;
+        }
+        if (!materials) {
+          router.push('/onboarding');
+          return;
+        }
+
+        const [
+          { data: profileData, error: profileErr },
+          { data: subData, error: subErr },
+          { data: jp },
+          { data: appData, error: appErr },
+          { data: matFull },
+          { data: dv },
+          { data: msgs },
+          { data: notifs },
+          { data: tks },
+        ] = await Promise.all([
+          supabase.from('profiles').select('*').eq('id', user.id).single(),
+          supabase.from('subscriptions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single(),
+          supabase.from('job_postings').select('*').eq('filled', false).eq('closed', false).order('created_at', { ascending: false }),
+          supabase.from('applications').select('*, job_postings(*)').eq('user_id', user.id).order('created_at', { ascending: false }),
+          supabase.from('client_materials').select('*').eq('user_id', user.id).maybeSingle(),
+          supabase.from('cv_deliverables').select('*').eq('user_id', user.id).maybeSingle(), // RLS-protected: only returns a row once delivered
+          supabase.from('messages').select('*').eq('thread_user_id', user.id).order('created_at', { ascending: true }),
+          supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+          supabase.from('tickets').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        ]);
+        if (profileErr) throw profileErr;
         if (subErr) throw subErr;
+        if (appErr) throw appErr;
+        setProfile(profileData);
 
         let activeSub = subData as Subscription;
         // If a paid cycle has ended, drop back to Free Trial.
@@ -109,37 +126,12 @@ export default function DashboardPage() {
         }
         setSubscription(activeSub);
 
-        const { data: jp } = await supabase.from('job_postings').select('*').eq('filled', false).eq('closed', false).order('created_at', { ascending: false });
         setPostings((jp as JobPosting[]) || []);
-
-        const { data: appData, error: appErr } = await supabase
-          .from('applications').select('*, job_postings(*)').eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-        if (appErr) throw appErr;
         setApplications(appData || []);
-
-        const { data: matFull } = await supabase
-          .from('client_materials').select('*').eq('user_id', user.id).maybeSingle();
         setMaterial(matFull as ClientMaterial);
-
-        // Only returns a row once the CV has been delivered (RLS-protected).
-        const { data: dv } = await supabase
-          .from('cv_deliverables').select('*').eq('user_id', user.id).maybeSingle();
         setCvDeliverable(dv as CvDeliverable);
-
-        const { data: msgs } = await supabase
-          .from('messages').select('*').eq('thread_user_id', user.id)
-          .order('created_at', { ascending: true });
         setMessages((msgs as Message[]) || []);
-
-        const { data: notifs } = await supabase
-          .from('notifications').select('*').eq('user_id', user.id)
-          .order('created_at', { ascending: false });
         setNotifications((notifs as Notification[]) || []);
-
-        const { data: tks } = await supabase
-          .from('tickets').select('*').eq('user_id', user.id)
-          .order('created_at', { ascending: false });
         setTickets((tks as Ticket[]) || []);
       } catch (err: any) {
         setError(err.message || 'Failed to load dashboard data.');
