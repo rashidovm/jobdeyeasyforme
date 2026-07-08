@@ -49,6 +49,7 @@ export default function CTAAndFooter() {
               <ul className="space-y-2.5 text-sm">
                 <li><a href="#how-it-works" className="text-cream/70 transition-colors hover:text-cream">How it works</a></li>
                 <li><a href="/jobs" className="text-cream/70 transition-colors hover:text-cream">Jobs</a></li>
+                <li><a href="/blog" className="text-cream/70 transition-colors hover:text-cream">Blog</a></li>
                 <li><a href="#pricing" className="text-cream/70 transition-colors hover:text-cream">Pricing</a></li>
                 <li><a href="#faq" className="text-cream/70 transition-colors hover:text-cream">FAQ</a></li>
               </ul>

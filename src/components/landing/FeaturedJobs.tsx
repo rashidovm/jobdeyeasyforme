@@ -18,6 +18,7 @@ export default function FeaturedJobs() {
         .from('job_postings')
         .select('id, title, company, location, work_mode, salary, public_teaser, created_at, filled')
         .eq('filled', false)
+        .eq('closed', false)
         .order('created_at', { ascending: false })
         .limit(4);
       setJobs((data as JobPosting[]) || []);

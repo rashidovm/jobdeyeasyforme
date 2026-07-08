@@ -40,6 +40,7 @@ export default function ClientDetailPage() {
   const [jobId, setJobId] = useState('');
   const [assignTo, setAssignTo] = useState('');
   const [dueAt, setDueAt] = useState('');
+  const [appForm, setAppForm] = useState({ manualTitle: '', manualCompany: '', cvUrl: '', clUrl: '', applyTo: '', note: '', refDoc: '' });
   const [cv, setCv] = useState({ final_cv_url: '', final_cover_letter_url: '' });
   const [plan, setPlan] = useState({ tier: 'free_trial', used: 0, limit: 1 });
   const [msgText, setMsgText] = useState('');
@@ -102,7 +103,7 @@ export default function ClientDetailPage() {
     if (s) { const x = s as Subscription; setPlan({ tier: x.tier, used: x.applications_used, limit: x.applications_limit }); }
     if (c) setAssignedStaffId((c as Profile).assigned_staff_id || '');
 
-    const { data: j } = await supabase.from('job_postings').select('*').eq('filled', false).order('created_at', { ascending: false });
+    const { data: j } = await supabase.from('job_postings').select('*').eq('filled', false).eq('closed', false).order('created_at', { ascending: false });
     setJobs((j as JobPosting[]) || []);
     if (isAdmin) {
       const { data: st } = await supabase.from('profiles').select('*').in('role', ['staff', 'admin']);
@@ -176,18 +177,31 @@ export default function ClientDetailPage() {
 
   const createApplication = async (e: React.FormEvent) => {
     e.preventDefault(); setError('');
-    if (!jobId) { setError('Pick a job posting.'); return; }
     if (!sub) { setError('This job seeker has no subscription.'); return; }
-    if (jobInQueue(jobId)) { setError('This job is already in this seeker\u2019s queue.'); return; }
+    if (!jobId && !appForm.manualTitle.trim()) { setError('Pick a listed job, or type the job title for a manual application.'); return; }
+    if (jobId && jobInQueue(jobId)) { setError('This job is already in this seeker\u2019s queue.'); return; }
     setBusy(true);
     const staffId = assignTo || assignedStaffId || (me?.role === 'staff' ? me.id : null);
+    const hasDetails = !!(appForm.cvUrl || appForm.clUrl || appForm.applyTo);
     const { error: insErr } = await supabase.from('applications').insert({
-      user_id: clientId, subscription_id: sub.id, job_id: jobId, assigned_to: staffId,
-      due_at: dueAt ? new Date(dueAt).toISOString() : null, status: 'queued', why_picked: [],
+      user_id: clientId, subscription_id: sub.id,
+      job_id: jobId || null,
+      manual_job_title: jobId ? null : appForm.manualTitle.trim() || null,
+      manual_company: jobId ? null : appForm.manualCompany.trim() || null,
+      tailored_cv_url: appForm.cvUrl.trim() || null,
+      tailored_cover_letter_url: appForm.clUrl.trim() || null,
+      apply_to_email_or_link: appForm.applyTo.trim() || null,
+      reference_doc_url: appForm.refDoc.trim() || null,
+      why_picked: appForm.note.trim() ? [appForm.note.trim()] : [],
+      assigned_to: staffId,
+      due_at: dueAt ? new Date(dueAt).toISOString() : null,
+      status: hasDetails ? 'human_review' : 'queued',
     });
     setBusy(false);
     if (insErr) { setError(insErr.message); return; }
-    setJobId(''); setAssignTo(''); setDueAt(''); flash('Application created.'); load();
+    setJobId(''); setAssignTo(''); setDueAt('');
+    setAppForm({ manualTitle: '', manualCompany: '', cvUrl: '', clUrl: '', applyTo: '', note: '', refDoc: '' });
+    flash('Application created.'); load();
   };
 
   const setTier = async (tier: string) => {
@@ -460,21 +474,33 @@ export default function ClientDetailPage() {
           )}
 
           {(isAdmin || me?.role === 'staff') && (
-            <div className="rounded-2xl border border-line bg-white p-6 shadow-soft">
-              <h2 className="mb-4 flex items-center gap-2 font-bold"><FilePlus2 className="h-5 w-5 text-green" /> Add a job to the queue</h2>
+            <div className="accent-top rounded-2xl border border-line bg-white p-6 shadow-soft">
+              <h2 className="mb-1 flex items-center gap-2 font-bold"><FilePlus2 className="h-5 w-5 text-green" /> Applications — fill one in</h2>
+              <p className="mb-4 text-xs text-muted">Pick a listed job <em>or</em> type the role manually. Add the Drive links and where the email goes — all optional now, editable later.</p>
               <form onSubmit={createApplication}>
-                <FormField as="select" label="Job posting" value={jobId} onChange={(e) => setJobId(e.target.value)} required>
-                  <option value="">Select a job…</option>
+                <FormField as="select" label="Job posting (optional)" value={jobId} onChange={(e) => setJobId(e.target.value)}>
+                  <option value="">No listing — manual application</option>
                   {jobs.filter((j) => !j.filled).map((j) => <option key={j.id} value={j.id}>{j.title} — {j.company}</option>)}
                 </FormField>
+                {!jobId && (
+                  <>
+                    <FormField label="Job title" value={appForm.manualTitle} onChange={(e) => setAppForm({ ...appForm, manualTitle: e.target.value })} placeholder="e.g. Front Desk Officer" />
+                    <FormField label="Company" value={appForm.manualCompany} onChange={(e) => setAppForm({ ...appForm, manualCompany: e.target.value })} placeholder="e.g. Zenith Microfinance" />
+                  </>
+                )}
+                <FormField label="Tailored CV link (Drive)" value={appForm.cvUrl} onChange={(e) => setAppForm({ ...appForm, cvUrl: e.target.value })} placeholder="https://drive.google.com/…" />
+                <FormField label="Cover letter link (Drive)" value={appForm.clUrl} onChange={(e) => setAppForm({ ...appForm, clUrl: e.target.value })} placeholder="https://drive.google.com/…" />
+                <FormField label="Where to apply (email or link)" value={appForm.applyTo} onChange={(e) => setAppForm({ ...appForm, applyTo: e.target.value })} placeholder="hr@company.com" helperText="Where the seeker sends their application." />
+                <FormField label="Reference / guide document (optional)" value={appForm.refDoc} onChange={(e) => setAppForm({ ...appForm, refDoc: e.target.value })} placeholder="https://docs.google.com/…" helperText="Step-by-step instructions doc: email subject, body, what to attach, or form answers to copy-paste." />
+                <FormField as="textarea" label="Short note (why this job)" value={appForm.note} onChange={(e) => setAppForm({ ...appForm, note: e.target.value })} placeholder="One line the seeker will see." />
                 {isAdmin && (
-                  <FormField as="select" label="Assign to staff" value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
+                  <FormField as="select" label="Assign to" value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
                     <option value="">Seeker&apos;s assigned staff</option>
                     {staff.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
                   </FormField>
                 )}
                 <FormField label="Deliver by" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
-                <Button type="submit" disabled={busy || jobs.length === 0} fullWidth className="mt-2">Create application</Button>
+                <Button type="submit" disabled={busy} fullWidth className="mt-2">Create application</Button>
               </form>
             </div>
           )}
@@ -485,7 +511,18 @@ export default function ClientDetailPage() {
               <ul className="divide-y divide-line">{apps.map((app) => { const st = STATUS_MAP[app.status]; return (
                 <li key={app.id} className="flex items-center gap-1 pr-2 hover:bg-cream">
                   <Link href={`/admin/applications/${app.id}`} className="flex flex-1 items-center justify-between gap-2 px-5 py-3">
-                    <div className="min-w-0"><p className="truncate text-sm font-semibold">{app.job_postings?.title || 'Application'}</p><p className="truncate text-xs text-muted">{app.job_postings?.company}</p></div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{app.job_postings?.title || app.manual_job_title || 'Application'}</p>
+                      <p className="truncate text-xs text-muted">{app.job_postings?.company || app.manual_company || 'Manual application'}</p>
+                      {['sent_to_client', 'client_applied', 'interview', 'offer', 'rejected'].includes(app.status) && (
+                        app.client_sent
+                          ? <p className="mt-0.5 text-[0.68rem] font-bold text-green">✓ Seeker confirmed sent{app.client_sent_at ? ` · ${new Date(app.client_sent_at).toLocaleDateString()}` : ''}</p>
+                          : <p className="mt-0.5 text-[0.68rem] font-bold text-gold">⏳ Not confirmed sent yet</p>
+                      )}
+                      {app.needs_followup && !app.heard_back && (
+                        <p className="mt-0.5 text-[0.68rem] font-bold text-red-600">🔔 No response from {app.job_postings?.company || app.manual_company || 'employer'} — needs a follow-up email</p>
+                      )}
+                    </div>
                     <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: st.bg, color: st.color }}>{st.label}</span>
                   </Link>
                   <button onClick={() => deleteApp(app.id)} className="rounded-lg p-2 text-muted hover:bg-red-50 hover:text-red-600" aria-label="Delete application"><Trash2 className="h-4 w-4" /></button>

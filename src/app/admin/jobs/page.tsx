@@ -68,6 +68,14 @@ export default function JobsPage() {
     load();
   };
 
+  const toggleClosed = async (j: JobPosting) => {
+    await supabase.from('job_postings').update({ closed: !j.closed }).eq('id', j.id);
+    load();
+  };
+
+  const isExpired = (j: JobPosting) => !!j.closes_at && new Date(j.closes_at) < new Date();
+  const isUrgent = (j: JobPosting) => !!j.closes_at && !isExpired(j) && new Date(j.closes_at).getTime() - Date.now() < 3 * 24 * 3600 * 1000;
+
   const remove = async (id: string) => {
     if (!confirm('Delete this job posting?')) return;
     await supabase.from('job_postings').delete().eq('id', id);
@@ -106,7 +114,7 @@ export default function JobsPage() {
             <FormField label="Applications close (optional)" type="datetime-local" value={form.closes_at} onChange={(e) => setForm({ ...form, closes_at: e.target.value })} />
             <FormField label="Source link" value={form.source_link} onChange={(e) => setForm({ ...form, source_link: e.target.value })} placeholder="https://…" required />
             <FormField as="textarea" label="Public teaser" value={form.public_teaser} onChange={(e) => setForm({ ...form, public_teaser: e.target.value })} helperText="One-line blurb shown on the jobs list." required />
-            <FormField as="textarea" label="Full job description (public)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} helperText="The full description shown on the job's own page. Paste the responsibilities, requirements, etc." />
+            <FormField as="textarea" label="Full job description (public)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} helperText="The full description shown on the job's own page. Formatting is kept: blank line = paragraph, start a line with - for a bullet, **text** = bold, # Heading, ## Subheading." />
             <FormField as="textarea" label="Internal description" value={form.internal_description} onChange={(e) => setForm({ ...form, internal_description: e.target.value })} helperText="Private notes for writing the application. Never shown publicly." required />
             <Button type="submit" disabled={saving} fullWidth className="mt-2">
               {saving ? 'Saving…' : editingId ? 'Update job posting' : 'Add job posting'}
@@ -136,6 +144,8 @@ export default function JobsPage() {
                       <p className="flex items-center gap-2 truncate font-semibold">
                         {j.title}
                         {j.filled && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[0.6rem] font-bold uppercase text-red-600">Filled</span>}
+                        {(j.closed || isExpired(j)) && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-[0.6rem] font-bold uppercase text-ink">Closed</span>}
+                        {isUrgent(j) && !j.closed && !j.filled && <span className="rounded-full bg-gold px-2 py-0.5 text-[0.6rem] font-bold uppercase text-white">Urgent</span>}
                       </p>
                       <p className="flex flex-wrap items-center gap-3 text-xs text-muted">
                         <span className="flex items-center gap-1"><Building2 className="h-3 w-3" /> {j.company}</span>
@@ -143,9 +153,14 @@ export default function JobsPage() {
                         {j.work_mode && <span className="rounded-full bg-cream px-2 py-0.5 capitalize">{j.work_mode}</span>}
                       </p>
                       <p className="mt-1.5 line-clamp-2 text-sm text-muted">{j.public_teaser}</p>
-                      <button onClick={() => toggleFilled(j)} className="mt-2 text-xs font-semibold text-green hover:underline">
-                        {j.filled ? 'Mark as open' : 'Mark role filled'}
-                      </button>
+                      <div className="mt-2 flex gap-4">
+                        <button onClick={() => toggleFilled(j)} className="text-xs font-semibold text-green hover:underline">
+                          {j.filled ? 'Unmark filled' : 'Mark role filled'}
+                        </button>
+                        <button onClick={() => toggleClosed(j)} className="text-xs font-semibold text-muted hover:text-ink hover:underline">
+                          {j.closed ? 'Reopen applications' : 'Close applications'}
+                        </button>
+                      </div>
                     </div>
                     <div className="flex shrink-0 gap-1">
                       <button onClick={() => edit(j)} className="rounded-lg p-2 text-muted hover:bg-green-light hover:text-green" aria-label="Edit">

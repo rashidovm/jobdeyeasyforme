@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { MapPin, Building2, Clock, ArrowRight, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { JobPosting } from '@/types';
+import { prettyDate } from '@/lib/dates';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
@@ -12,6 +13,12 @@ import { cn } from '@/lib/cn';
 function isNew(created?: string) {
   if (!created) return false;
   return Date.now() - new Date(created).getTime() < 7 * 24 * 3600 * 1000;
+}
+function isClosed(j: JobPosting) {
+  return !!j.closed || (!!j.closes_at && new Date(j.closes_at) < new Date());
+}
+function isUrgent(j: JobPosting) {
+  return !isClosed(j) && !!j.closes_at && new Date(j.closes_at).getTime() - Date.now() < 3 * 24 * 3600 * 1000;
 }
 
 export default function JobsBoardPage() {
@@ -27,7 +34,7 @@ export default function JobsBoardPage() {
       setAuthed(!!user);
       const { data } = await supabase
         .from('job_postings')
-        .select('id, title, company, location, salary, work_mode, public_teaser, closes_at, created_at, filled')
+        .select('id, title, company, location, salary, work_mode, public_teaser, closes_at, created_at, filled, closed')
         .eq('filled', false)
         .order('created_at', { ascending: false });
       setJobs((data as JobPosting[]) || []);
@@ -88,7 +95,11 @@ export default function JobsBoardPage() {
               <Link key={j.id} href={`/jobs/${j.id}`} className="group rounded-2xl border border-line bg-white p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-card">
                 <div className="mb-1 flex items-start justify-between gap-2">
                   <h3 className="font-bold group-hover:text-green">{j.title}</h3>
-                  {isNew(j.created_at) && <span className="rounded-full bg-gold px-2 py-0.5 text-[0.6rem] font-bold uppercase text-white">New</span>}
+                  <span className="flex shrink-0 gap-1.5">
+                    {isClosed(j) && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-[0.6rem] font-bold uppercase text-ink">Closed</span>}
+                    {isUrgent(j) && <span className="rounded-full bg-red-600 px-2 py-0.5 text-[0.6rem] font-bold uppercase text-white">Urgent</span>}
+                    {!isClosed(j) && isNew(j.created_at) && <span className="rounded-full bg-gold px-2 py-0.5 text-[0.6rem] font-bold uppercase text-white">New</span>}
+                  </span>
                 </div>
                 <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                   <span className="flex items-center gap-1"><Building2 className="h-3 w-3" /> {j.company}</span>
@@ -97,7 +108,10 @@ export default function JobsBoardPage() {
                 </p>
                 <p className="mt-2 line-clamp-2 text-sm text-muted">{j.public_teaser}</p>
                 {j.salary && <p className="mt-2 text-sm font-semibold text-ink">{j.salary}</p>}
-                <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-green">View role <ArrowRight className="h-4 w-4" /></span>
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1 text-sm font-semibold text-green">View role <ArrowRight className="h-4 w-4" /></span>
+                  <span className="text-[0.7rem] font-medium text-muted">Posted {prettyDate(j.created_at)}</span>
+                </div>
               </Link>
             ))
           )}

@@ -35,6 +35,9 @@ export default function ApplicationWorkPage() {
     apply_to_email_or_link: '',
     why_picked: '',
     correction_notes: '',
+    followup_to: '',
+    followup_email: '',
+    reference_doc_url: '',
     status: 'queued' as ApplicationStatus,
     assigned_to: '',
     due_at: '',
@@ -56,6 +59,9 @@ export default function ApplicationWorkPage() {
       apply_to_email_or_link: application?.apply_to_email_or_link || '',
       why_picked: (application?.why_picked || []).join('\n'),
       correction_notes: application?.correction_notes || '',
+      followup_to: application?.followup_to || '',
+      followup_email: application?.followup_email || '',
+      reference_doc_url: application?.reference_doc_url || '',
       status: application?.status || 'queued',
       assigned_to: application?.assigned_to || '',
       due_at: application?.due_at ? toLocalInput(application.due_at) : '',
@@ -78,12 +84,30 @@ export default function ApplicationWorkPage() {
 
   useEffect(() => { if (me) load(); /* eslint-disable-next-line */ }, [me, appId]);
 
+  const generateFollowup = async () => {
+    setError(''); setMsg(''); setSaving(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch('/api/ai/followup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+      body: JSON.stringify({ applicationId: appId }),
+    });
+    const json = await res.json();
+    setSaving(false);
+    if (!res.ok) { setError(json.error || 'AI follow-up failed.'); return; }
+    setForm((f) => ({ ...f, followup_email: json.followup }));
+    setMsg('AI follow-up drafted — review it, then Save.');
+  };
+
   const buildPayload = () => ({
     tailored_cv_url: form.tailored_cv_url || null,
     tailored_cover_letter_url: form.tailored_cover_letter_url || null,
     apply_to_email_or_link: form.apply_to_email_or_link || null,
     why_picked: form.why_picked.split('\n').map((s) => s.trim()).filter(Boolean),
     correction_notes: form.correction_notes || null,
+    followup_to: form.followup_to || null,
+    followup_email: form.followup_email || null,
+    reference_doc_url: form.reference_doc_url || null,
     due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
     ...(isAdmin ? { assigned_to: form.assigned_to || null } : {}),
   });
@@ -137,7 +161,7 @@ export default function ApplicationWorkPage() {
 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold">{job?.title || 'Application'}</h1>
+          <h1 className="text-2xl font-extrabold">{job?.title || app?.manual_job_title || 'Application'}</h1>
           <p className="text-sm text-muted">
             {job?.company} · for {client?.full_name}
           </p>
@@ -168,6 +192,21 @@ export default function ApplicationWorkPage() {
             <FormField label="Where to apply (email or link)" value={form.apply_to_email_or_link} onChange={(e) => setForm({ ...form, apply_to_email_or_link: e.target.value })} placeholder="hr@company.com or https://…" />
             <FormField as="textarea" label="Why we picked this job" value={form.why_picked} onChange={(e) => setForm({ ...form, why_picked: e.target.value })} helperText="One reason per line — the client sees these." />
             <FormField as="textarea" label="Correction / review notes" value={form.correction_notes} onChange={(e) => setForm({ ...form, correction_notes: e.target.value })} helperText="Internal notes for the checker. Not shown to the client." />
+
+            <div className="mt-6 rounded-xl border border-gold/30 bg-gold-light/60 p-4">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-gold">Follow-up (optional)</h3>
+                <button type="button" onClick={generateFollowup} disabled={saving} className="rounded-full bg-gold px-3 py-1.5 text-xs font-semibold text-white shadow-soft hover:bg-gold-bright disabled:opacity-60">✨ Generate with AI</button>
+              </div>
+              {app?.needs_followup && !app?.heard_back && (
+                <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600">🔔 The seeker says {app.job_postings?.company || app.manual_company || 'the employer'} hasn\u2019t responded — prepare a follow-up email below. It appears on their dashboard once saved.</p>
+              )}
+              <p className="mb-3 text-xs text-muted">A follow-up email the seeker can send later (e.g. a few days after applying) to nudge the employer. Saved follow-ups show on the seeker\u2019s dashboard with a copy button.</p>
+              <FormField label="Follow-up to (email)" value={form.followup_to} onChange={(e) => setForm({ ...form, followup_to: e.target.value })} placeholder="hr@company.com" />
+              <FormField as="textarea" label="Follow-up email text" value={form.followup_email} onChange={(e) => setForm({ ...form, followup_email: e.target.value })} placeholder="Dear Hiring Manager, I recently applied for…" />
+            </div>
+
+            <FormField label="Reference / guide document (optional)" value={form.reference_doc_url} onChange={(e) => setForm({ ...form, reference_doc_url: e.target.value })} placeholder="https://docs.google.com/…" helperText="Instructions doc for the seeker: email subject and body to use, what to attach, or form answers to copy-paste." />
           </div>
 
           {job && (
@@ -212,6 +251,11 @@ export default function ApplicationWorkPage() {
 
           <div className="rounded-2xl border border-line bg-white p-6 shadow-soft">
             <h2 className="mb-2 font-bold">Deliver to client</h2>
+            {app?.client_sent ? (
+              <p className="mb-2 rounded-lg bg-green-light px-3 py-2 text-xs font-bold text-green">✓ Seeker confirmed they sent this application{app.client_sent_at ? ` on ${new Date(app.client_sent_at).toLocaleDateString()}` : ''}.</p>
+            ) : ['sent_to_client', 'client_applied', 'interview', 'offer', 'rejected'].includes(app?.status || '') ? (
+              <p className="mb-2 rounded-lg bg-gold-light px-3 py-2 text-xs font-bold text-gold">⏳ Seeker hasn&apos;t confirmed sending yet — they&apos;re being reminded every 12 hours.</p>
+            ) : null}
             {sub && (
               <p className="mb-3 text-sm text-muted">
                 Quota: <strong className="text-ink">{sub.applications_used}/{sub.applications_limit}</strong> used this cycle.

@@ -208,3 +208,26 @@ Run **`supabase_pass8_setup.sql`** (ticket handler assignment + support display 
 - **Jobs page is auth-aware:** logged-in users see "Browse jobs" + "Back to dashboard" — no marketing "Let us apply for you" / signup CTA.
 - **Tickets:** staff/admin can open tickets (assigned to opener); the **handler's name shows** ("Handled by …"); only an **admin can close/reopen**; staff can reply.
 - **Chat & tickets show "Customer Support · [staff name]"** to the seeker (single friendly label + the real name).
+
+---
+
+## Pass 9 — Manual applications, follow-up engine, celebrations, blog, job polish
+
+### One-time Supabase setup
+Run **`supabase_pass9_setup.sql`**. It covers: manual applications (job optional), the send/heard-back reminder fields, follow-up email + reference doc, jobs `closed` flag, and the blog `posts` table.
+
+### What's new
+**Applications (per seeker, on their admin page):**
+- "Applications — fill one in": pick a listed job OR type it manually, plus tailored CV link, cover letter link, where to apply, a short note, and an optional **reference/guide document** link. All optional, all editable later on the application page.
+- List shows ✓ confirmed sent / ⏳ not confirmed / 🔔 needs follow-up per application.
+
+**Follow-up engine (real applications only — not the first CV):**
+- Delivered application → seeker sees "Have you sent this application yet?" **Yes / Not yet**. Not yet → asked again in 12 hours. Yes → 🎉 celebration + marked sent (admin sees it).
+- 2 days after sending → "Has [company] gotten back to you?" **Yes / Not yet**. Yes → 🎉 celebration. Not yet → flagged **needs follow-up** on admin/staff (badge on the seeker page + banner on the application page), and asked again in 2 days.
+- Team writes a follow-up email (or **✨ Generate with AI** via Groq) + target address → saved, it appears on the seeker's dashboard with Copy + Send buttons.
+
+**Celebrations:** animated confetti popups for plan upgrades (manual or future Paystack), interviews, sending an application, and hearing back.
+
+**Jobs:** Urgent badge (closes within 3 days), auto-Closed when the deadline passes, manual "Close applications" toggle, "Posted [date]" everywhere, and full-description **formatting** (paragraphs, `-` bullets, `**bold**`, `#`/`##` headings) rendered beautifully.
+
+**Blog:** admin editor (`/admin/blog`) with formatting + featured-image guidance (1200×675px 16:9, JPG/PNG, <400KB), public `/blog` (latest first) and article pages with share button, published date, back links, related posts, and a signup CTA. Latest 3 articles appear on the homepage; Blog is in the nav and footer.

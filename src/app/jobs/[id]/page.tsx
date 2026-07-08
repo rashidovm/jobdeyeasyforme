@@ -8,6 +8,8 @@ import { supabase, buildWhatsappLink } from '@/lib/supabase';
 import { JobPosting } from '@/types';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
+import RichText from '@/components/ui/RichText';
+import { prettyDate } from '@/lib/dates';
 
 export default function JobDetailPage() {
   const params = useParams();
@@ -23,7 +25,7 @@ export default function JobDetailPage() {
       setAuthed(!!user);
       const { data } = await supabase
         .from('job_postings')
-        .select('id, title, company, location, salary, work_mode, public_teaser, description, source_link, closes_at, filled')
+        .select('id, title, company, location, salary, work_mode, public_teaser, description, source_link, closes_at, created_at, filled, closed')
         .eq('id', id).maybeSingle();
       setJob(data as JobPosting);
       setLoading(false);
@@ -59,7 +61,13 @@ export default function JobDetailPage() {
         ) : (
           <>
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <h1 className="text-3xl font-extrabold">{job.title}</h1>
+              <div>
+                <div className="mb-2 flex gap-2">
+                  {(job.closed || (job.closes_at && new Date(job.closes_at) < new Date())) && <span className="rounded-full bg-ink/10 px-2.5 py-1 text-[0.65rem] font-bold uppercase text-ink">Applications closed</span>}
+                  {!job.closed && job.closes_at && new Date(job.closes_at) >= new Date() && new Date(job.closes_at).getTime() - Date.now() < 3 * 24 * 3600 * 1000 && <span className="rounded-full bg-red-600 px-2.5 py-1 text-[0.65rem] font-bold uppercase text-white">Urgent — closes soon</span>}
+                </div>
+                <h1 className="text-3xl font-extrabold">{job.title}</h1>
+              </div>
               <button onClick={share} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold text-ink shadow-soft transition-colors hover:border-green hover:text-green">
                 {copied ? <><Check className="h-4 w-4" /> Copied</> : <><Share2 className="h-4 w-4" /> Share</>}
               </button>
@@ -68,14 +76,15 @@ export default function JobDetailPage() {
               <span className="flex items-center gap-1"><Building2 className="h-4 w-4" /> {job.company}</span>
               <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {job.location}</span>
               {job.work_mode && <span className="rounded-full bg-white px-2.5 py-0.5 capitalize shadow-soft">{job.work_mode}</span>}
-              {job.closes_at && <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> closes {new Date(job.closes_at).toLocaleDateString()}</span>}
+              {job.closes_at && <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> closes {prettyDate(job.closes_at)}</span>}
+              {job.created_at && <span className="text-muted">Posted {prettyDate(job.created_at)}</span>}
             </p>
             {job.salary && <p className="mt-3 text-lg font-bold text-green">{job.salary}</p>}
 
             <div className="mt-6 rounded-2xl border border-line bg-white p-6 shadow-soft">
               {job.public_teaser && <p className="mb-4 text-[0.97rem] font-medium leading-relaxed text-ink">{job.public_teaser}</p>}
               {job.description ? (
-                <p className="whitespace-pre-wrap text-[0.97rem] leading-relaxed text-muted">{job.description}</p>
+                <RichText text={job.description} className="text-[0.97rem]" />
               ) : (
                 <p className="text-sm text-muted">Full details are shared when we prepare your application.</p>
               )}

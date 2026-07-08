@@ -7,7 +7,9 @@ import {
   FileText, UserRound, ArrowUpCircle, MessageCircle, LogOut, Rocket, Mail, Send,
   Hourglass, PenLine, Eye, CheckCircle2, Inbox, PartyPopper, Trophy, XCircle,
 } from 'lucide-react';
-import { Clock, Sparkles, FileCheck2, MessageSquare, Zap, Bell, Briefcase, Plus, CheckCircle2 as CheckC } from 'lucide-react';
+import { Clock, Sparkles, FileCheck2, MessageSquare, Zap, Bell, Briefcase, Plus, CheckCircle2 as CheckC, Copy, BookOpen } from 'lucide-react';
+import Celebration from '@/components/ui/Celebration';
+import { prettyDate } from '@/lib/dates';
 import { supabase, buildWhatsappLink } from '@/lib/supabase';
 import { Profile, Subscription, Application, ClientMaterial, CvDeliverable, Message, Notification, JobPosting, Ticket, TicketMessage } from '@/types';
 import { STATUS_MAP, PLANS, TOPUP_PRICES } from '@/lib/constants';
@@ -35,6 +37,7 @@ export default function DashboardPage() {
   const [postings, setPostings] = useState<JobPosting[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [tab, setTab] = useState<Tab>('apps');
+  const [celebration, setCelebration] = useState<{ title: string; message: string } | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -146,6 +149,33 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, messages]);
 
+  // Celebrate plan upgrades and interviews (once each, tracked locally)
+  useEffect(() => {
+    if (!profile || !subscription) return;
+    const rank: Record<string, number> = { free_trial: 0, starter: 1, active_search: 2, unlimited_hunt: 3 };
+    const tierKey = `jde_tier_${profile.id}`;
+    const prev = typeof window !== 'undefined' ? localStorage.getItem(tierKey) : null;
+    if (prev && (rank[subscription.tier] ?? 0) > (rank[prev] ?? 0) && subscription.status === 'active') {
+      const planName = PLANS.find((p) => p.id === subscription.tier)?.name || 'your new plan';
+      setCelebration({ title: `Welcome to ${planName}! 🎉`, message: 'Your upgrade is live. More applications, faster turnaround — let\u2019s get you hired.' });
+    }
+    if (subscription.status === 'active') localStorage.setItem(tierKey, subscription.tier);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, subscription?.tier, subscription?.status]);
+
+  useEffect(() => {
+    if (!profile || applications.length === 0) return;
+    const key = `jde_intv_${profile.id}`;
+    const seen: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+    const interview = applications.find((a) => (a.status === 'interview' || a.client_outcome === 'interview') && !seen.includes(a.id));
+    if (interview) {
+      const jobName = interview.job_postings?.title || interview.manual_job_title || 'your application';
+      setCelebration({ title: 'You got an interview! 🎉', message: `Massive congratulations — ${jobName} moved to interview. Message us in chat and we\u2019ll help you prepare.` });
+      localStorage.setItem(key, JSON.stringify([...seen, interview.id]));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, applications]);
+
   const createTicket = async (subject: string, body: string) => {
     if (!profile) return;
     const { error: e } = await supabase.from('tickets').insert({ user_id: profile.id, subject, body });
@@ -153,6 +183,49 @@ export default function DashboardPage() {
       const { data: tks } = await supabase.from('tickets').select('*').eq('user_id', profile.id).order('created_at', { ascending: false });
       setTickets((tks as Ticket[]) || []);
     }
+  };
+
+  const refreshApps = async () => {
+    if (!profile) return;
+    const { data: apps } = await supabase
+      .from('applications').select('*, job_postings(*)').eq('user_id', profile.id)
+      .order('created_at', { ascending: false });
+    setApplications((apps as Application[]) || []);
+  };
+
+  const confirmSent = async (appId: string) => {
+    await supabase.from('applications')
+      .update({
+        client_sent: true,
+        client_sent_at: new Date().toISOString(),
+        client_outcome: 'still_waiting',
+        heard_remind_after: new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString(),
+      })
+      .eq('id', appId);
+    setCelebration({ title: 'Application sent! 🎉', message: 'Well done — your application is out there. We\u2019ll check in with you in a couple of days to see if they\u2019ve responded.' });
+    refreshApps();
+  };
+
+  const remindLater = async (appId: string) => {
+    await supabase.from('applications')
+      .update({ remind_after: new Date(Date.now() + 12 * 3600 * 1000).toISOString() })
+      .eq('id', appId);
+    refreshApps();
+  };
+
+  const heardYes = async (appId: string) => {
+    await supabase.from('applications')
+      .update({ heard_back: true, heard_back_at: new Date().toISOString(), needs_followup: false })
+      .eq('id', appId);
+    setCelebration({ title: 'They responded! 🎉', message: 'That\u2019s huge — an employer got back to you. Update us in chat with the details and we\u2019ll help you with the next step.' });
+    refreshApps();
+  };
+
+  const heardNo = async (appId: string) => {
+    await supabase.from('applications')
+      .update({ needs_followup: true, heard_remind_after: new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString() })
+      .eq('id', appId);
+    refreshApps();
   };
 
   if (loading) {
@@ -322,8 +395,8 @@ export default function DashboardPage() {
                     <div key={app.id} className="rounded-2xl border border-line bg-white p-6 shadow-soft">
                       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <h3 className="font-bold">{app.job_postings?.title || 'Job Title'}</h3>
-                          <p className="text-sm text-muted">{app.job_postings?.company} · {app.job_postings?.location}</p>
+                          <h3 className="font-bold">{app.job_postings?.title || app.manual_job_title || 'Job Title'}</h3>
+                          <p className="text-sm text-muted">{app.job_postings?.company || app.manual_company || ''}{app.job_postings?.location ? ` · ${app.job_postings.location}` : ''}</p>
                         </div>
                         <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: status.bg, color: status.color }}>
                           <StatusIcon className="h-3.5 w-3.5" /> {status.label}
@@ -349,7 +422,63 @@ export default function DashboardPage() {
                         )}
                       </div>
 
-                      {app.client_outcome && (
+                      {app.reference_doc_url && (
+                        <div className="mt-3">
+                          <Button href={app.reference_doc_url} variant="secondary" size="sm"><BookOpen className="h-4 w-4" /> Application guide</Button>
+                          <p className="mt-1.5 text-xs text-muted">Step-by-step instructions for this application — what to write, what to attach, and how to send it.</p>
+                        </div>
+                      )}
+
+                      {/* Did you send it? */}
+                      {!app.client_sent && (!app.remind_after || new Date(app.remind_after) < new Date()) && (
+                        <div className="mt-4 rounded-xl border border-gold/40 bg-gold-light p-4">
+                          <p className="text-sm font-bold text-ink">Quick check-in — have you sent this application yet?</p>
+                          <div className="mt-3 flex gap-2">
+                            <button onClick={() => confirmSent(app.id)} className="rounded-full bg-green px-5 py-2 text-sm font-semibold text-white shadow-soft transition-transform hover:-translate-y-0.5">Yes, I&apos;ve sent it ✓</button>
+                            <button onClick={() => remindLater(app.id)} className="rounded-full border border-line bg-white px-5 py-2 text-sm font-semibold text-muted hover:border-gold hover:text-gold">Not yet</button>
+                          </div>
+                          <p className="mt-2 text-xs text-muted">If not yet, no wahala — we&apos;ll gently remind you again in 12 hours.</p>
+                        </div>
+                      )}
+                      {!app.client_sent && app.remind_after && new Date(app.remind_after) >= new Date() && (
+                        <p className="mt-4 rounded-xl bg-cream px-3.5 py-2.5 text-xs text-muted">⏰ We&apos;ll check in again soon to see if you&apos;ve sent this one.</p>
+                      )}
+
+                      {/* Have you heard back? */}
+                      {app.client_sent && !app.heard_back && app.heard_remind_after && new Date(app.heard_remind_after) < new Date() && (
+                        <div className="mt-4 rounded-xl border border-green/30 bg-green-light p-4">
+                          <p className="text-sm font-bold text-green-dark">It&apos;s been a few days — has {app.job_postings?.company || app.manual_company || 'the employer'} gotten back to you?</p>
+                          <div className="mt-3 flex gap-2">
+                            <button onClick={() => heardYes(app.id)} className="rounded-full bg-green px-5 py-2 text-sm font-semibold text-white shadow-soft transition-transform hover:-translate-y-0.5">Yes! 🎉</button>
+                            <button onClick={() => heardNo(app.id)} className="rounded-full border border-line bg-white px-5 py-2 text-sm font-semibold text-muted hover:border-green hover:text-green">Not yet</button>
+                          </div>
+                        </div>
+                      )}
+                      {app.client_sent && !app.heard_back && app.needs_followup && (
+                        <p className="mt-4 rounded-xl bg-cream px-3.5 py-2.5 text-xs text-muted">📮 Noted — our team is preparing a follow-up email to nudge {app.job_postings?.company || app.manual_company || 'the employer'}. It&apos;ll appear here when ready.</p>
+                      )}
+                      {app.client_sent && !app.heard_back && !app.needs_followup && app.heard_remind_after && new Date(app.heard_remind_after) >= new Date() && (
+                        <p className="mt-4 rounded-xl bg-cream px-3.5 py-2.5 text-xs text-muted">✅ Sent on {prettyDate(app.client_sent_at)} — we&apos;ll check in about a response in a couple of days.</p>
+                      )}
+                      {app.heard_back && (
+                        <p className="mt-4 rounded-xl bg-green-light px-3.5 py-2.5 text-xs font-semibold text-green-dark">🎉 Employer responded on {prettyDate(app.heard_back_at)} — keep us posted in chat!</p>
+                      )}
+
+                      {/* Follow-up email prepared by the team */}
+                      {app.followup_email && app.client_sent && !app.heard_back && (
+                        <div className="mt-4 rounded-xl border border-gold/40 bg-gold-light/70 p-4">
+                          <div className="mb-2 flex items-center justify-between">
+                            <p className="text-xs font-bold uppercase tracking-wide text-gold">Your follow-up email{app.followup_to ? ` → ${app.followup_to}` : ''}</p>
+                            <button onClick={() => navigator.clipboard.writeText(app.followup_email || '')} className="inline-flex items-center gap-1 text-xs font-semibold text-green"><Copy className="h-3.5 w-3.5" /> Copy</button>
+                          </div>
+                          <pre className="whitespace-pre-wrap font-sans text-sm text-ink">{app.followup_email}</pre>
+                          {app.followup_to && (
+                            <div className="mt-3"><Button href={`mailto:${app.followup_to}`} size="sm"><Send className="h-4 w-4" /> Send follow-up</Button></div>
+                          )}
+                        </div>
+                      )}
+
+                      {app.client_outcome && app.client_outcome !== 'still_waiting' && (
                         <div className="mt-4 border-t border-line pt-4 text-sm"><strong>Outcome:</strong> {app.client_outcome.replace('_', ' ')}</div>
                       )}
                     </div>
@@ -502,6 +631,10 @@ export default function DashboardPage() {
           ))}
         </div>
       </nav>
+
+      {celebration && (
+        <Celebration title={celebration.title} message={celebration.message} onClose={() => setCelebration(null)} />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import Hero from '@/components/landing/Hero';
 import TrustStrip from '@/components/landing/TrustStrip';
 import HowItWorks from '@/components/landing/HowItWorks';
 import FeaturedJobs from '@/components/landing/FeaturedJobs';
+import LatestPosts from '@/components/landing/LatestPosts';
 import Pricing from '@/components/landing/Pricing';
 import Promises from '@/components/landing/Promises';
 import FAQ from '@/components/landing/FAQ';
@@ -17,6 +18,7 @@ export default function Home() {
         <TrustStrip />
         <HowItWorks />
         <FeaturedJobs />
+        <LatestPosts />
         <Pricing />
         <Promises />
         <FAQ />

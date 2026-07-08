@@ -88,7 +88,9 @@ export interface Application {
   id: string;
   user_id: string;
   subscription_id: string;
-  job_id: string;
+  job_id: string | null;
+  manual_job_title?: string | null;
+  manual_company?: string | null;
   tailored_cv_url: string | null;
   tailored_cover_letter_url: string | null;
   apply_to_email_or_link: string | null;
@@ -97,6 +99,16 @@ export interface Application {
   reviewed_by: string | null;
   assigned_to: string | null;
   correction_notes: string | null;
+  client_sent?: boolean;
+  client_sent_at?: string | null;
+  remind_after?: string | null;
+  heard_back?: boolean;
+  heard_back_at?: string | null;
+  heard_remind_after?: string | null;
+  needs_followup?: boolean;
+  reference_doc_url?: string | null;
+  followup_to?: string | null;
+  followup_email?: string | null;
   due_at: string | null;
   check_in_7day_sent: boolean;
   check_in_14day_sent: boolean;
@@ -120,6 +132,7 @@ export interface JobPosting {
   work_mode: string | null;
   closes_at: string | null;
   filled: boolean;
+  closed?: boolean;
   created_at?: string;
 }
 
@@ -165,4 +178,17 @@ export interface TicketMessage {
   sender_name?: string | null;
   body: string;
   created_at: string;
+}
+
+
+export interface Post {
+  id: string;
+  title: string;
+  hook: string | null;
+  content: string;
+  featured_image_url: string | null;
+  published: boolean;
+  author_id: string | null;
+  created_at: string;
+  published_at: string | null;
 }
