@@ -121,6 +121,18 @@ export default function ApplicationWorkPage() {
     load();
   };
 
+  const saveFollowup = async () => {
+    setError(''); setMsg(''); setSaving(true);
+    const { error: e } = await supabase
+      .from('applications')
+      .update({ followup_to: form.followup_to || null, followup_email: form.followup_email || null })
+      .eq('id', appId);
+    setSaving(false);
+    if (e) { setError(e.message); return; }
+    setMsg('Follow-up saved — it now shows on the seeker\u2019s dashboard.');
+    load();
+  };
+
   const deliver = async () => {
     setError(''); setMsg('');
     if (!sub) { setError('No subscription found for this client.'); return; }
@@ -193,20 +205,35 @@ export default function ApplicationWorkPage() {
             <FormField as="textarea" label="Why we picked this job" value={form.why_picked} onChange={(e) => setForm({ ...form, why_picked: e.target.value })} helperText="One reason per line — the client sees these." />
             <FormField as="textarea" label="Correction / review notes" value={form.correction_notes} onChange={(e) => setForm({ ...form, correction_notes: e.target.value })} helperText="Internal notes for the checker. Not shown to the client." />
 
-            <div className="mt-6 rounded-xl border border-gold/30 bg-gold-light/60 p-4">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-bold text-gold">Follow-up (optional)</h3>
-                <button type="button" onClick={generateFollowup} disabled={saving} className="rounded-full bg-gold px-3 py-1.5 text-xs font-semibold text-white shadow-soft hover:bg-gold-bright disabled:opacity-60">✨ Generate with AI</button>
-              </div>
-              {app?.needs_followup && !app?.heard_back && (
-                <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600">🔔 The seeker says {app.job_postings?.company || app.manual_company || 'the employer'} hasn\u2019t responded — prepare a follow-up email below. It appears on their dashboard once saved.</p>
-              )}
-              <p className="mb-3 text-xs text-muted">A follow-up email the seeker can send later (e.g. a few days after applying) to nudge the employer. Saved follow-ups show on the seeker\u2019s dashboard with a copy button.</p>
-              <FormField label="Follow-up to (email)" value={form.followup_to} onChange={(e) => setForm({ ...form, followup_to: e.target.value })} placeholder="hr@company.com" />
-              <FormField as="textarea" label="Follow-up email text" value={form.followup_email} onChange={(e) => setForm({ ...form, followup_email: e.target.value })} placeholder="Dear Hiring Manager, I recently applied for…" />
-            </div>
-
             <FormField label="Reference / guide document (optional)" value={form.reference_doc_url} onChange={(e) => setForm({ ...form, reference_doc_url: e.target.value })} placeholder="https://docs.google.com/…" helperText="Instructions doc for the seeker: email subject and body to use, what to attach, or form answers to copy-paste." />
+          </div>
+
+          {/* Follow-up is a separate step — only relevant once the application has actually been sent to the client */}
+          <div className="rounded-2xl border border-gold/30 bg-gold-light/40 p-6 shadow-soft">
+            <h2 className="mb-1 font-bold text-gold">Follow-up email (optional)</h2>
+            <p className="mb-4 text-xs text-muted">A separate nudge email the seeker can send a few days after they&apos;ve actually sent this application. It has its own save action and only appears here once the application is delivered.</p>
+
+            {!alreadyDelivered ? (
+              <div className="rounded-xl border border-line bg-white/60 px-4 py-3 text-sm text-muted">
+                Unlocks once this application is delivered to the client.
+              </div>
+            ) : (
+              <>
+                <ErrorBox message={error} />
+                {msg && <div className="mb-4 rounded-xl border border-green/30 bg-green-light px-4 py-2.5 text-sm font-medium text-green">{msg}</div>}
+                {app?.needs_followup && !app?.heard_back && (
+                  <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-600">🔔 The seeker says {app.job_postings?.company || app.manual_company || 'the employer'} hasn\u2019t responded — prepare a follow-up email below. It appears on their dashboard once saved.</p>
+                )}
+                <div className="mb-3 flex justify-end">
+                  <button type="button" onClick={generateFollowup} disabled={saving} className="rounded-full bg-gold px-3 py-1.5 text-xs font-semibold text-white shadow-soft hover:bg-gold-bright disabled:opacity-60">✨ Generate with AI</button>
+                </div>
+                <FormField label="Follow-up to (email)" value={form.followup_to} onChange={(e) => setForm({ ...form, followup_to: e.target.value })} placeholder="hr@company.com" />
+                <FormField as="textarea" label="Follow-up email text" value={form.followup_email} onChange={(e) => setForm({ ...form, followup_email: e.target.value })} placeholder="Dear Hiring Manager, I recently applied for…" />
+                <Button onClick={saveFollowup} disabled={saving} fullWidth>
+                  <Save className="h-4 w-4" /> {saving ? 'Saving…' : 'Save follow-up'}
+                </Button>
+              </>
+            )}
           </div>
 
           {job && (

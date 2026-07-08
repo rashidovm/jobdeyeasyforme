@@ -371,10 +371,12 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-5">
-                {applications.map((app) => {
+                {applications.map((app, appIdx) => {
                   const status = STATUS_MAP[app.status];
                   const StatusIcon = STATUS_ICONS[status.icon] ?? Hourglass;
                   const isDelivered = ['sent_to_client', 'client_applied', 'interview', 'offer', 'rejected'].includes(app.status);
+                  // applications are loaded newest-first, so number them oldest -> newest (Application 1, 2, 3…)
+                  const appNumber = applications.length - appIdx;
 
                   if (!isDelivered) {
                     return (
@@ -383,8 +385,8 @@ export default function DashboardPage() {
                           <PartyPopper className="h-6 w-6" />
                         </div>
                         <div>
+                          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-green">Application {appNumber}</p>
                           <h3 className="font-bold text-green-dark">We found a match for you!</h3>
-                          <p className="text-sm font-semibold text-ink">{app.job_postings?.title || 'A new role'}{app.job_postings?.company ? ` · ${app.job_postings.company}` : ''}</p>
                           <p className="mt-1.5 text-sm text-muted">We&apos;re getting your tailored CV and cover letter ready for this role. We&apos;ll let you know the moment it&apos;s ready to send.</p>
                         </div>
                       </div>
@@ -395,6 +397,7 @@ export default function DashboardPage() {
                     <div key={app.id} className="rounded-2xl border border-line bg-white p-6 shadow-soft">
                       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                         <div>
+                          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-muted">Application {appNumber}</p>
                           <h3 className="font-bold">{app.job_postings?.title || app.manual_job_title || 'Job Title'}</h3>
                           <p className="text-sm text-muted">{app.job_postings?.company || app.manual_company || ''}{app.job_postings?.location ? ` · ${app.job_postings.location}` : ''}</p>
                         </div>

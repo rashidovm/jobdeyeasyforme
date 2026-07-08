@@ -8,6 +8,7 @@ import { JobPosting } from '@/types';
 import { WORK_MODES } from '@/lib/constants';
 import Button from '@/components/ui/Button';
 import FormField from '@/components/ui/FormField';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 import ErrorBox from '@/components/ui/ErrorBox';
 
 const EMPTY = {
@@ -114,7 +115,13 @@ export default function JobsPage() {
             <FormField label="Applications close (optional)" type="datetime-local" value={form.closes_at} onChange={(e) => setForm({ ...form, closes_at: e.target.value })} />
             <FormField label="Source link" value={form.source_link} onChange={(e) => setForm({ ...form, source_link: e.target.value })} placeholder="https://…" required />
             <FormField as="textarea" label="Public teaser" value={form.public_teaser} onChange={(e) => setForm({ ...form, public_teaser: e.target.value })} helperText="One-line blurb shown on the jobs list." required />
-            <FormField as="textarea" label="Full job description (public)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} helperText="The full description shown on the job's own page. Formatting is kept: blank line = paragraph, start a line with - for a bullet, **text** = bold, # Heading, ## Subheading." />
+            <RichTextEditor
+              label="Full job description (public)"
+              value={form.description}
+              onChange={(v) => setForm({ ...form, description: v })}
+              helperText="Select text and use the buttons above (or Ctrl+B for bold) to format. Shown on the job's own public page."
+              minHeight="min-h-[160px]"
+            />
             <FormField as="textarea" label="Internal description" value={form.internal_description} onChange={(e) => setForm({ ...form, internal_description: e.target.value })} helperText="Private notes for writing the application. Never shown publicly." required />
             <Button type="submit" disabled={saving} fullWidth className="mt-2">
               {saving ? 'Saving…' : editingId ? 'Update job posting' : 'Add job posting'}
