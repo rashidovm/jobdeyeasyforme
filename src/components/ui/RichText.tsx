@@ -8,12 +8,16 @@ import React from 'react';
  */
 
 function inline(text: string): React.ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((p, i) =>
-    p.startsWith('**') && p.endsWith('**')
-      ? <strong key={i} className="font-bold text-ink">{p.slice(2, -2)}</strong>
-      : <React.Fragment key={i}>{p}</React.Fragment>
-  );
+  const parts = text.split(/(\*\*[^*]+\*\*|_[^_]+_)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith('**') && p.endsWith('**')) {
+      return <strong key={i} className="font-bold text-ink">{p.slice(2, -2)}</strong>;
+    }
+    if (p.startsWith('_') && p.endsWith('_') && p.length > 2) {
+      return <em key={i}>{p.slice(1, -1)}</em>;
+    }
+    return <React.Fragment key={i}>{p}</React.Fragment>;
+  });
 }
 
 export default function RichText({ text, className = '', justify = false }: { text: string; className?: string; justify?: boolean }) {

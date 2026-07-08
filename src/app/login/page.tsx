@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LogIn } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { touchPresence } from '@/lib/presence';
 import AuthShell from '@/components/ui/AuthShell';
 import Button from '@/components/ui/Button';
 import FormField from '@/components/ui/FormField';
@@ -28,6 +29,7 @@ function LoginForm() {
   }, [router, nextPath]);
 
   const routeByRole = async (userId: string) => {
+    touchPresence();
     const { data: roleRow } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
     if (roleRow && (roleRow.role === 'admin' || roleRow.role === 'staff')) router.push('/admin');
     else router.push(nextPath);

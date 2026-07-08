@@ -35,6 +35,11 @@ export default function StaffPage() {
     loadStaff();
   };
 
+  const toggleCanPostBlog = async (s: Profile) => {
+    await supabase.from('profiles').update({ can_post_blog: !s.can_post_blog }).eq('id', s.id);
+    loadStaff();
+  };
+
   useEffect(() => { loadStaff(); }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -148,7 +153,14 @@ export default function StaffPage() {
                     className={cn('rounded-full px-3 py-1 text-xs font-semibold transition-colors',
                       s.can_post_jobs ? 'bg-green text-white' : 'border border-line text-muted hover:border-green')}
                   >
-                    {s.can_post_jobs ? 'Can post jobs' : 'Enable posting'}
+                    {s.can_post_jobs ? 'Can post jobs' : 'Enable job posting'}
+                  </button>
+                  <button
+                    onClick={() => toggleCanPostBlog(s)}
+                    className={cn('rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                      s.can_post_blog ? 'bg-gold text-white' : 'border border-line text-muted hover:border-gold')}
+                  >
+                    {s.can_post_blog ? 'Can write blog' : 'Enable blog'}
                   </button>
                 </li>
               ))}

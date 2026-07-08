@@ -245,3 +245,47 @@ No new SQL — just redeploy.
 - **Follow-up countdowns:** after confirming "sent," the card shows a live **"⏱ Follow-up check-in in X"** countdown (and snoozed send-reminders show their countdown too). Ticks every minute.
 - **Upgrade math corrected:** upgrading ADDS the full new plan's applications on top of the current balance (Free Trial 1 + Starter 3 = **4 total**) and restarts the 30-day cycle — they paid for the full plan.
 - **Hero fix:** descenders (j, p) no longer clipped in the landing headline.
+
+---
+
+## Pass 12 — SEO, rich editor, real "new" badges, testimonials, presence, seeker page reorg
+
+### One-time Supabase setup
+Run **`supabase_pass12_setup.sql`**. It covers: blog slugs (existing posts auto-backfilled from their titles — old links keep working, see below), blog views/featured, staff blog permission, presence tracking, application apply-type, the testimonials table, and the direct-paid-signup bonus.
+
+### SEO (the big one)
+- **Every blog post now renders server-side** with its own real `<title>`, meta description, and Open Graph/Twitter image — so links shared on WhatsApp/X/Facebook show a rich preview, and Google can actually read and rank each article properly (previously everything loaded via JavaScript after the page opened, with one shared title for every post).
+- **Pretty URLs**: posts now live at `/blog/your-article-title` instead of a random ID. **Your 4 already-published articles keep working automatically** — visiting their old link redirects to the new pretty URL, so nothing you've shared breaks. Every new post gets its slug on creation and it never changes afterwards, so once shared, a link is permanent.
+- **`sitemap.xml` and `robots.txt`** — Google can now discover every job and article automatically.
+- Structured data (Article schema) on each post for richer Google search results.
+
+### Rich formatting, without typing symbols
+- New toolbar (Bold, Italic, Bullet, H1, H2 + live Preview) on the blog editor and the job description field — click to format, no need to type `**`, `-`, or `#` by hand. Ctrl+B / Ctrl+I work too.
+- **Full visual "Preview" button** on the blog editor — shows the actual centered/justified article layout with the image, before you publish.
+
+### Fixed: the "14" badge bug
+- Sidebar badges for **Browse jobs** and **Blog** now count only genuinely new items since the seeker's last visit — not everything posted in the last 7 days. Visiting `/jobs` or `/blog` clears the badge. First-ever visit seeds silently at 0 (no false "14").
+
+### Contact-leak protection
+- The public job description and teaser now **auto-flag** any email address or link typed into them, warning the admin/staff to move it to the internal notes or Source link instead — so an employer's contact never accidentally leaks publicly.
+
+### Applications: email vs form, and the reference document explained
+- Each application now has an **email vs form** selector — the seeker sees "Send your application" or "Open the application form" accordingly, and the guidance text matches ("everything is already arranged in this guide — copy and paste").
+- Added two FAQ entries explaining reference documents and form-based applications.
+
+### Direct-paid signup bonus
+- Anyone who subscribes straight to a paid plan (skipping the free trial) now gets **+1 application** automatically on signup. For subscriptions that started before this change, there's a **"🎁 Grant +1 bonus application"** button on their admin page.
+
+### Wins & testimonials
+- When a seeker confirms an employer got back to them, a testimonial is **auto-drafted** (never shown publicly). Approve and edit it on the new **Wins** admin page.
+- Approved wins now appear in a **"People are getting responses"** section on the homepage, plus a small rotating toast ("Gloria just got a response 🎉") in the corner — fully automatic as more wins come in.
+
+### Blog: featured, most-read, staff permission
+- Admins can **star a post as Featured** (shown large at the top of `/blog`) and see a **"Most read"** sidebar by view count.
+- **Staff can now be individually permitted to write blog posts**, separate from job-posting permission (toggle on the Staff page). Their drafts still require admin approval to go live.
+
+### Presence
+- The seeker's dashboard sends a heartbeat while they're active. Admin/staff now see **"● Online now"** or **"Last seen 2h ago"** on the job-seeker list and on each seeker's page — so you know if a delivered application was actually seen.
+
+### Seeker page reorganized
+- Each job seeker's admin page is now two clean tabs: **Overview** (raw onboarding data, the first CV/cover letter, chat, assigned staff, plan) and **Applications** (suggested jobs, the manual fill-in form, and the full applications list) — no longer mixed on one long page.

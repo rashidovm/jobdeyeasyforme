@@ -13,6 +13,7 @@ import {
   Application, ClientMaterial, CvDeliverable, JobPosting, Profile, Subscription, Message, Notification,
 } from '@/types';
 import { PLANS, STATUS_MAP, APPLICATION_LIMITS, PLAN_CHANNELS } from '@/lib/constants';
+import { isOnline, timeAgo } from '@/lib/presence';
 import Button from '@/components/ui/Button';
 import FormField from '@/components/ui/FormField';
 import ErrorBox from '@/components/ui/ErrorBox';
@@ -40,11 +41,12 @@ export default function ClientDetailPage() {
   const [jobId, setJobId] = useState('');
   const [assignTo, setAssignTo] = useState('');
   const [dueAt, setDueAt] = useState('');
-  const [appForm, setAppForm] = useState({ manualTitle: '', manualCompany: '', cvUrl: '', clUrl: '', applyTo: '', note: '', refDoc: '' });
+  const [appForm, setAppForm] = useState({ manualTitle: '', manualCompany: '', cvUrl: '', clUrl: '', applyTo: '', applyType: 'email', note: '', refDoc: '' });
   const [cv, setCv] = useState({ final_cv_url: '', final_cover_letter_url: '' });
   const [plan, setPlan] = useState({ tier: 'free_trial', used: 0, limit: 1 });
   const [msgText, setMsgText] = useState('');
   const [assignedStaffId, setAssignedStaffId] = useState('');
+  const [tab, setTab] = useState<'overview' | 'applications'>('overview');
   const [error, setError] = useState('');
   const [flashMsg, setFlashMsg] = useState('');
   const [busy, setBusy] = useState(false);
@@ -191,6 +193,7 @@ export default function ClientDetailPage() {
       tailored_cv_url: appForm.cvUrl.trim() || null,
       tailored_cover_letter_url: appForm.clUrl.trim() || null,
       apply_to_email_or_link: appForm.applyTo.trim() || null,
+      apply_type: appForm.applyType,
       reference_doc_url: appForm.refDoc.trim() || null,
       why_picked: appForm.note.trim() ? [appForm.note.trim()] : [],
       assigned_to: staffId,
@@ -200,7 +203,7 @@ export default function ClientDetailPage() {
     setBusy(false);
     if (insErr) { setError(insErr.message); return; }
     setJobId(''); setAssignTo(''); setDueAt('');
-    setAppForm({ manualTitle: '', manualCompany: '', cvUrl: '', clUrl: '', applyTo: '', note: '', refDoc: '' });
+    setAppForm({ manualTitle: '', manualCompany: '', cvUrl: '', clUrl: '', applyTo: '', applyType: 'email', note: '', refDoc: '' });
     flash('Application created.'); load();
   };
 
@@ -243,6 +246,14 @@ export default function ClientDetailPage() {
     load();
   };
 
+  const grantBonusApp = async () => {
+    if (!sub) return;
+    setBusy(true);
+    await supabase.from('subscriptions').update({ applications_limit: sub.applications_limit + 1 }).eq('id', sub.id);
+    setBusy(false);
+    flash('Granted +1 bonus application.'); load();
+  };
+
   const sendMessage = async () => {
     const body = msgText.trim(); if (!body || !me) return;
     const { error: e } = await supabase.from('messages').insert({ thread_user_id: clientId, sender_id: me.id, sender_role: me.role, sender_name: me.full_name, body, read_by_client: false });
@@ -278,13 +289,19 @@ export default function ClientDetailPage() {
       <div className="mb-6 rounded-2xl border border-line bg-white p-6 shadow-soft">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-green text-xl font-bold text-white">{client.full_name?.charAt(0) || 'C'}</div>
+            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-green text-xl font-bold text-white">
+              {client.full_name?.charAt(0) || 'C'}
+              {isOnline(client.last_seen_at) && <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-green" />}
+            </div>
             <div>
               <h1 className="text-xl font-extrabold">{client.full_name}</h1>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
                 <span className="inline-flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> {client.email}</span>
                 {whatsappNo && <span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {whatsappNo}</span>}
               </div>
+              <p className={cn('mt-1 text-xs font-semibold', isOnline(client.last_seen_at) ? 'text-green' : 'text-muted')}>
+                {isOnline(client.last_seen_at) ? '● Online now' : `Last seen: ${timeAgo(client.last_seen_at)}`}
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -316,6 +333,19 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
+      {/* Tabs: keep the seeker's profile/CV separate from their applications */}
+      <div className="mb-6 inline-flex rounded-full border border-line bg-white p-1 shadow-soft">
+        <button onClick={() => setTab('overview')} className={cn('rounded-full px-4 py-2 text-sm font-semibold transition-colors', tab === 'overview' ? 'bg-green text-white' : 'text-muted hover:text-ink')}>
+          Overview
+        </button>
+        <button onClick={() => setTab('applications')} className={cn('flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors', tab === 'applications' ? 'bg-green text-white' : 'text-muted hover:text-ink')}>
+          Applications
+          <span className={cn('flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.65rem] font-bold', tab === 'applications' ? 'bg-white/25 text-white' : 'bg-cream text-muted')}>{apps.length}</span>
+        </button>
+      </div>
+
+      {tab === 'overview' && (
+      <>
       {/* CV deliverable — CV + cover letter ONLY (the post-registration deliverable) */}
       <div className="mb-6 rounded-2xl border border-line bg-white p-6 shadow-soft">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
@@ -401,25 +431,6 @@ export default function ClientDetailPage() {
             </dl>
           </div>
 
-          {/* Suggested jobs matching the dream role */}
-          {suggested.length > 0 && (
-            <div className="rounded-2xl border border-line bg-white p-6 shadow-soft">
-              <h2 className="mb-1 font-bold">Suggested jobs for {materials?.dream_job || 'this seeker'}</h2>
-              <p className="mb-4 text-xs text-muted">Open roles that match their goal. Create an application, or find your own and attach it below.</p>
-              <ul className="space-y-3">
-                {suggested.map((j) => (
-                  <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">{j.title}</p>
-                      <p className="truncate text-xs text-muted">{j.company} · {j.location}{j.work_mode ? ` · ${j.work_mode}` : ''}</p>
-                    </div>
-                    <Button size="sm" variant="secondary" onClick={() => quickCreateApp(j.id)} disabled={busy}>Create application</Button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           {/* chat */}
           <div className="rounded-2xl border border-line bg-white shadow-soft">
             <div className="flex items-center gap-2 border-b border-line px-6 py-4"><MessageSquare className="h-5 w-5 text-green" /><h2 className="font-bold">Chat with this job seeker</h2></div>
@@ -469,6 +480,11 @@ export default function ClientDetailPage() {
                     <button onClick={() => adjustApps(1)} className="h-6 w-6 rounded-full border border-line font-bold">+</button>
                   </div>
                 </div>
+                {sub && sub.tier !== 'free_trial' && (
+                  <button onClick={grantBonusApp} disabled={busy} className="mb-2 w-full text-center text-xs font-semibold text-gold hover:underline">
+                    🎁 Grant +1 bonus application (direct-paid signup credit)
+                  </button>
+                )}
               </div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Move to plan</p>
               <div className="mb-3 grid grid-cols-2 gap-2">
@@ -482,41 +498,37 @@ export default function ClientDetailPage() {
               <Button variant="secondary" size="sm" fullWidth onClick={resetCycle} disabled={busy}><RotateCcw className="h-4 w-4" /> Reset 30-day cycle</Button>
             </div>
           )}
+        </div>
+      </div>
+      </>
+      )}
 
-          {(isAdmin || me?.role === 'staff') && (
-            <div className="accent-top rounded-2xl border border-line bg-white p-6 shadow-soft">
-              <h2 className="mb-1 flex items-center gap-2 font-bold"><FilePlus2 className="h-5 w-5 text-green" /> Applications — fill one in</h2>
-              <p className="mb-4 text-xs text-muted">Pick a listed job <em>or</em> type the role manually. Add the Drive links and where the email goes — all optional now, editable later.</p>
-              <form onSubmit={createApplication}>
-                <FormField as="select" label="Job posting (optional)" value={jobId} onChange={(e) => setJobId(e.target.value)}>
-                  <option value="">No listing — manual application</option>
-                  {jobs.filter((j) => !j.filled).map((j) => <option key={j.id} value={j.id}>{j.title} — {j.company}</option>)}
-                </FormField>
-                {!jobId && (
-                  <>
-                    <FormField label="Job title" value={appForm.manualTitle} onChange={(e) => setAppForm({ ...appForm, manualTitle: e.target.value })} placeholder="e.g. Front Desk Officer" />
-                    <FormField label="Company" value={appForm.manualCompany} onChange={(e) => setAppForm({ ...appForm, manualCompany: e.target.value })} placeholder="e.g. Zenith Microfinance" />
-                  </>
-                )}
-                <FormField label="Tailored CV link (Drive)" value={appForm.cvUrl} onChange={(e) => setAppForm({ ...appForm, cvUrl: e.target.value })} placeholder="https://drive.google.com/…" />
-                <FormField label="Cover letter link (Drive)" value={appForm.clUrl} onChange={(e) => setAppForm({ ...appForm, clUrl: e.target.value })} placeholder="https://drive.google.com/…" />
-                <FormField label="Where to apply (email or link)" value={appForm.applyTo} onChange={(e) => setAppForm({ ...appForm, applyTo: e.target.value })} placeholder="hr@company.com" helperText="Where the seeker sends their application." />
-                <FormField label="Reference / guide document (optional)" value={appForm.refDoc} onChange={(e) => setAppForm({ ...appForm, refDoc: e.target.value })} placeholder="https://docs.google.com/…" helperText="Step-by-step instructions doc: email subject, body, what to attach, or form answers to copy-paste." />
-                <FormField as="textarea" label="Short note (why this job)" value={appForm.note} onChange={(e) => setAppForm({ ...appForm, note: e.target.value })} placeholder="One line the seeker will see." />
-                {isAdmin && (
-                  <FormField as="select" label="Assign to" value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
-                    <option value="">Seeker&apos;s assigned staff</option>
-                    {staff.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-                  </FormField>
-                )}
-                <FormField label="Deliver by" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
-                <Button type="submit" disabled={busy} fullWidth className="mt-2">Create application</Button>
-              </form>
+      {tab === 'applications' && (
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          {/* Suggested jobs matching the dream role */}
+          {suggested.length > 0 ? (
+            <div className="rounded-2xl border border-line bg-white p-6 shadow-soft">
+              <h2 className="mb-1 font-bold">Suggested jobs for {materials?.dream_job || 'this seeker'}</h2>
+              <p className="mb-4 text-xs text-muted">Open roles that match their goal. Create an application, or find your own and attach it below.</p>
+              <ul className="space-y-3">
+                {suggested.map((j) => (
+                  <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{j.title}</p>
+                      <p className="truncate text-xs text-muted">{j.company} · {j.location}{j.work_mode ? ` · ${j.work_mode}` : ''}</p>
+                    </div>
+                    <Button size="sm" variant="secondary" onClick={() => quickCreateApp(j.id)} disabled={busy}>Create application</Button>
+                  </li>
+                ))}
+              </ul>
             </div>
+          ) : (
+            <div className="rounded-2xl border border-line bg-white p-6 text-sm text-muted shadow-soft">No suggested jobs match {materials?.dream_job ? `"${materials.dream_job}"` : 'their goal'} right now — add a listing, or fill one in manually on the right.</div>
           )}
 
           <div className="rounded-2xl border border-line bg-white shadow-soft">
-            <div className="border-b border-line px-5 py-4"><h2 className="font-bold">Applications ({apps.length})</h2></div>
+            <div className="border-b border-line px-5 py-4"><h2 className="font-bold">All applications ({apps.length})</h2></div>
             {apps.length === 0 ? <div className="px-5 py-8 text-center text-sm text-muted">None yet.</div> :
               <ul className="divide-y divide-line">{apps.map((app) => { const st = STATUS_MAP[app.status]; return (
                 <li key={app.id} className="flex items-center gap-1 pr-2 hover:bg-cream">
@@ -539,7 +551,56 @@ export default function ClientDetailPage() {
                 </li>); })}</ul>}
           </div>
         </div>
+
+        {/* right column */}
+        <div className="space-y-6">
+          {(isAdmin || me?.role === 'staff') && (
+            <div className="accent-top rounded-2xl border border-line bg-white p-6 shadow-soft">
+              <h2 className="mb-1 flex items-center gap-2 font-bold"><FilePlus2 className="h-5 w-5 text-green" /> Applications — fill one in</h2>
+              <p className="mb-4 text-xs text-muted">Pick a listed job <em>or</em> type the role manually. Add the Drive links and where the email goes — all optional now, editable later.</p>
+              <form onSubmit={createApplication}>
+                <FormField as="select" label="Job posting (optional)" value={jobId} onChange={(e) => setJobId(e.target.value)}>
+                  <option value="">No listing — manual application</option>
+                  {jobs.filter((j) => !j.filled).map((j) => <option key={j.id} value={j.id}>{j.title} — {j.company}</option>)}
+                </FormField>
+                {!jobId && (
+                  <>
+                    <FormField label="Job title" value={appForm.manualTitle} onChange={(e) => setAppForm({ ...appForm, manualTitle: e.target.value })} placeholder="e.g. Front Desk Officer" />
+                    <FormField label="Company" value={appForm.manualCompany} onChange={(e) => setAppForm({ ...appForm, manualCompany: e.target.value })} placeholder="e.g. Zenith Microfinance" />
+                  </>
+                )}
+                <FormField label="Tailored CV link (Drive)" value={appForm.cvUrl} onChange={(e) => setAppForm({ ...appForm, cvUrl: e.target.value })} placeholder="https://drive.google.com/…" />
+                <FormField label="Cover letter link (Drive)" value={appForm.clUrl} onChange={(e) => setAppForm({ ...appForm, clUrl: e.target.value })} placeholder="https://drive.google.com/…" />
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-sm font-semibold">How does the seeker apply?</label>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setAppForm({ ...appForm, applyType: 'email' })} className={cn('flex-1 rounded-xl border px-3 py-2 text-sm font-semibold', appForm.applyType === 'email' ? 'border-green bg-green-light text-green' : 'border-line text-muted')}>✉️ By email</button>
+                    <button type="button" onClick={() => setAppForm({ ...appForm, applyType: 'form' })} className={cn('flex-1 rounded-xl border px-3 py-2 text-sm font-semibold', appForm.applyType === 'form' ? 'border-green bg-green-light text-green' : 'border-line text-muted')}>📝 By form</button>
+                  </div>
+                </div>
+                <FormField
+                  label={appForm.applyType === 'form' ? 'Application form link' : 'Where to apply (email address)'}
+                  value={appForm.applyTo}
+                  onChange={(e) => setAppForm({ ...appForm, applyTo: e.target.value })}
+                  placeholder={appForm.applyType === 'form' ? 'https://forms.company.com/…' : 'hr@company.com'}
+                  helperText={appForm.applyType === 'form' ? 'The seeker taps this to open the form.' : 'Where the seeker sends their application email.'}
+                />
+                <FormField label="Reference / guide document" value={appForm.refDoc} onChange={(e) => setAppForm({ ...appForm, refDoc: e.target.value })} placeholder="https://docs.google.com/…" helperText={appForm.applyType === 'form' ? "Strongly recommended: what to write in each form field, copy-paste ready." : 'Strongly recommended: the exact subject line, email body, and attachment order, copy-paste ready.'} />
+                <FormField as="textarea" label="Short note (why this job)" value={appForm.note} onChange={(e) => setAppForm({ ...appForm, note: e.target.value })} placeholder="One line the seeker will see." />
+                {isAdmin && (
+                  <FormField as="select" label="Assign to" value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
+                    <option value="">Seeker&apos;s assigned staff</option>
+                    {staff.map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+                  </FormField>
+                )}
+                <FormField label="Deliver by" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+                <Button type="submit" disabled={busy} fullWidth className="mt-2">Create application</Button>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
+      )}
     </div>
   );
 }

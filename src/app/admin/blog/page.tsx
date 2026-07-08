@@ -1,16 +1,22 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { PenLine, Trash2, Pencil, Eye, EyeOff, ImageUp } from 'lucide-react';
+import { PenLine, Trash2, Pencil, Eye, EyeOff, ImageUp, Star, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAdmin } from '@/lib/adminContext';
 import { Post } from '@/types';
 import Button from '@/components/ui/Button';
 import FormField from '@/components/ui/FormField';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import RichText from '@/components/ui/RichText';
 import ErrorBox from '@/components/ui/ErrorBox';
 import { prettyDate } from '@/lib/dates';
 import { cn } from '@/lib/cn';
+
+
+function slugify(title: string) {
+  return title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
 
 const EMPTY = { title: '', hook: '', featured_image_url: '', content: '', published: false };
 
@@ -24,6 +30,7 @@ export default function AdminBlogPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -59,7 +66,9 @@ export default function AdminBlogPage() {
       content: form.content,
       published: willPublish,
       published_at: willPublish ? new Date().toISOString() : null,
-      ...(editingId ? {} : { author_id: me?.id }),
+      // Slug is set once on creation and never changed afterwards, so a
+      // published article's URL never moves — safe to share anywhere.
+      ...(editingId ? {} : { author_id: me?.id, slug: slugify(form.title.trim()) || null }),
     };
     const { error: e1 } = editingId
       ? await supabase.from('posts').update(payload).eq('id', editingId)
@@ -78,6 +87,12 @@ export default function AdminBlogPage() {
   const togglePublish = async (p: Post) => {
     if (!isAdmin) return; // staff can't publish/unpublish — admin only
     await supabase.from('posts').update({ published: !p.published, published_at: !p.published ? new Date().toISOString() : p.published_at }).eq('id', p.id);
+    load();
+  };
+
+  const toggleFeatured = async (p: Post) => {
+    if (!isAdmin) return;
+    await supabase.from('posts').update({ featured: !p.featured }).eq('id', p.id);
     load();
   };
 
@@ -151,9 +166,14 @@ export default function AdminBlogPage() {
               </label>
             )}
 
-            <Button type="submit" disabled={saving} fullWidth>
-              {saving ? 'Saving…' : editingId ? (isAdmin ? 'Update article' : 'Update draft') : isAdmin ? (form.published ? 'Publish article' : 'Save draft') : 'Submit draft for review'}
-            </Button>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShowPreview(true)} className="flex-1 rounded-full border border-line px-4 py-3 text-sm font-semibold text-ink hover:border-green hover:text-green">
+                👁 Preview
+              </button>
+              <Button type="submit" disabled={saving} className="flex-[2]">
+                {saving ? 'Saving…' : editingId ? (isAdmin ? 'Update article' : 'Update draft') : isAdmin ? (form.published ? 'Publish article' : 'Save draft') : 'Submit draft for review'}
+              </Button>
+            </div>
             {editingId && <button type="button" onClick={() => { setEditingId(null); setForm({ ...EMPTY }); }} className="mt-2 w-full text-center text-sm text-muted hover:text-ink">Cancel edit</button>}
           </form>
         </div>
@@ -174,7 +194,16 @@ export default function AdminBlogPage() {
                     <p className="truncate text-sm font-semibold">{p.title}</p>
                     <p className="text-xs text-muted">{p.published ? `Published ${prettyDate(p.published_at)}` : isAdmin ? 'Draft' : 'Pending review'}</p>
                   </div>
+                  {p.published && <span className="hidden text-xs text-muted sm:inline">{p.views || 0} views</span>}
                   <span className={cn('rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase', p.published ? 'bg-green-light text-green' : 'bg-paper text-muted')}>{p.published ? 'Live' : isAdmin ? 'Draft' : 'Pending review'}</span>
+                  {isAdmin && (
+                    <button onClick={() => toggleFeatured(p)} className={cn('rounded-lg p-2', p.featured ? 'text-gold' : 'text-muted hover:bg-gold-light hover:text-gold')} aria-label="Toggle featured" title="Feature this post">
+                      <Star className="h-4 w-4" fill={p.featured ? 'currentColor' : 'none'} />
+                    </button>
+                  )}
+                  {p.published && (
+                    <a href={`/blog/${p.slug || p.id}`} target="_blank" rel="noopener noreferrer" className="rounded-lg p-2 text-muted hover:bg-green-light hover:text-green" aria-label="View live"><ExternalLink className="h-4 w-4" /></a>
+                  )}
                   {isAdmin && (
                     <button onClick={() => togglePublish(p)} className="rounded-lg p-2 text-muted hover:bg-green-light hover:text-green" aria-label="Toggle publish">{p.published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
                   )}
@@ -186,6 +215,26 @@ export default function AdminBlogPage() {
           )}
         </div>
       </div>
+
+      {showPreview && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-forest/70 p-6 backdrop-blur-sm" onClick={() => setShowPreview(false)}>
+          <div className="relative my-8 w-full max-w-2xl rounded-3xl bg-cream p-8 shadow-lift md:p-12" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowPreview(false)} className="absolute right-5 top-5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink">Close</button>
+            <div className="text-center">
+              <p className="text-[0.7rem] font-bold uppercase tracking-[0.24em] text-gold">{prettyDate(new Date().toISOString())}</p>
+              <h1 className="display mx-auto mt-4 max-w-2xl text-4xl leading-[1.05]">{form.title || 'Untitled article'}</h1>
+              {form.hook && <p className="mx-auto mt-4 max-w-xl font-display text-xl italic text-muted">{form.hook}</p>}
+            </div>
+            {form.featured_image_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={form.featured_image_url} alt="" className="mt-8 aspect-video w-full rounded-3xl object-cover shadow-card" />
+            )}
+            <div className="mt-10">
+              {form.content.trim() ? <RichText text={form.content} justify /> : <p className="text-sm text-muted">Nothing written yet.</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

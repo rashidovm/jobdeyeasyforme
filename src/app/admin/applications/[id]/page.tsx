@@ -33,6 +33,7 @@ export default function ApplicationWorkPage() {
     tailored_cv_url: '',
     tailored_cover_letter_url: '',
     apply_to_email_or_link: '',
+    apply_type: 'email',
     why_picked: '',
     correction_notes: '',
     followup_to: '',
@@ -57,6 +58,7 @@ export default function ApplicationWorkPage() {
       tailored_cv_url: application?.tailored_cv_url || '',
       tailored_cover_letter_url: application?.tailored_cover_letter_url || '',
       apply_to_email_or_link: application?.apply_to_email_or_link || '',
+      apply_type: application?.apply_type || 'email',
       why_picked: (application?.why_picked || []).join('\n'),
       correction_notes: application?.correction_notes || '',
       followup_to: application?.followup_to || '',
@@ -103,6 +105,7 @@ export default function ApplicationWorkPage() {
     tailored_cv_url: form.tailored_cv_url || null,
     tailored_cover_letter_url: form.tailored_cover_letter_url || null,
     apply_to_email_or_link: form.apply_to_email_or_link || null,
+    apply_type: form.apply_type || 'email',
     why_picked: form.why_picked.split('\n').map((s) => s.trim()).filter(Boolean),
     correction_notes: form.correction_notes || null,
     followup_to: form.followup_to || null,
@@ -201,7 +204,14 @@ export default function ApplicationWorkPage() {
 
             <FormField label="Tailored CV link" value={form.tailored_cv_url} onChange={(e) => setForm({ ...form, tailored_cv_url: e.target.value })} placeholder="https://…" helperText="Paste a shareable link (Google Drive, Dropbox, etc.)" />
             <FormField label="Cover letter link" value={form.tailored_cover_letter_url} onChange={(e) => setForm({ ...form, tailored_cover_letter_url: e.target.value })} placeholder="https://…" />
-            <FormField label="Where to apply (email or link)" value={form.apply_to_email_or_link} onChange={(e) => setForm({ ...form, apply_to_email_or_link: e.target.value })} placeholder="hr@company.com or https://…" />
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-semibold">How does the seeker apply?</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setForm({ ...form, apply_type: 'email' })} className={cn('flex-1 rounded-xl border px-3 py-2 text-sm font-semibold', form.apply_type === 'email' ? 'border-green bg-green-light text-green' : 'border-line text-muted')}>✉️ By email</button>
+                <button type="button" onClick={() => setForm({ ...form, apply_type: 'form' })} className={cn('flex-1 rounded-xl border px-3 py-2 text-sm font-semibold', form.apply_type === 'form' ? 'border-green bg-green-light text-green' : 'border-line text-muted')}>📝 By form</button>
+              </div>
+            </div>
+            <FormField label={form.apply_type === 'form' ? 'Application form link' : 'Where to apply (email address)'} value={form.apply_to_email_or_link} onChange={(e) => setForm({ ...form, apply_to_email_or_link: e.target.value })} placeholder={form.apply_type === 'form' ? 'https://forms.company.com/…' : 'hr@company.com'} />
             <FormField as="textarea" label="Why we picked this job" value={form.why_picked} onChange={(e) => setForm({ ...form, why_picked: e.target.value })} helperText="One reason per line — the client sees these." />
             <FormField as="textarea" label="Correction / review notes" value={form.correction_notes} onChange={(e) => setForm({ ...form, correction_notes: e.target.value })} helperText="Internal notes for the checker. Not shown to the client." />
 

@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useAdmin } from '@/lib/adminContext';
 import { Profile, Subscription } from '@/types';
 import { PLANS } from '@/lib/constants';
+import { isOnline, timeAgo } from '@/lib/presence';
 import { cn } from '@/lib/cn';
 
 export default function ClientsPage() {
@@ -76,12 +77,14 @@ export default function ClientsPage() {
               return (
                 <li key={c.id}>
                   <Link href={`/admin/clients/${c.id}`} className="flex items-center gap-3 px-5 py-3.5 hover:bg-cream">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green font-bold text-white">
+                    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green font-bold text-white">
                       {c.full_name?.charAt(0) || 'C'}
+                      {isOnline(c.last_seen_at) && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green" />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{c.full_name || 'Unnamed'}</p>
                       <p className="truncate text-xs text-muted">{c.email}</p>
+                      <p className={cn('text-[0.68rem]', isOnline(c.last_seen_at) ? 'font-semibold text-green' : 'text-muted')}>{timeAgo(c.last_seen_at)}</p>
                     </div>
                     <div className="hidden text-right sm:block">
                       <p className="text-xs font-semibold">{planName(sub?.tier)}</p>

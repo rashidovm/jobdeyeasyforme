@@ -19,9 +19,26 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "JobDeyEasy — We do the hard part. You hit Send.",
+  metadataBase: new URL("https://jobdeyeasyforme.vercel.app"),
+  title: {
+    default: "JobDeyEasy — We do the hard part. You hit Send.",
+    template: "%s | JobDeyEasy",
+  },
   description:
     "JobDeyEasy finds jobs that fit you and prepares everything: a tailored CV, a matching cover letter, and a ready-to-send email. You just hit Send.",
+  openGraph: {
+    type: "website",
+    siteName: "JobDeyEasy",
+    title: "JobDeyEasy — We do the hard part. You hit Send.",
+    description:
+      "We find jobs that fit you and prepare everything — a tailored CV, a matching cover letter, and a ready-to-send email.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "JobDeyEasy — We do the hard part. You hit Send.",
+    description:
+      "We find jobs that fit you and prepare everything — a tailored CV, a matching cover letter, and a ready-to-send email.",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

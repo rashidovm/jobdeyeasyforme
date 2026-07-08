@@ -11,6 +11,14 @@ import FormField from '@/components/ui/FormField';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import ErrorBox from '@/components/ui/ErrorBox';
 
+
+const CONTACT_PATTERN = /[\w.+-]+@[\w-]+\.[\w.-]+|https?:\/\/\S+|www\.\S+/gi;
+function findContactLeaks(text: string): string[] {
+  if (!text) return [];
+  const matches = text.match(CONTACT_PATTERN) || [];
+  return Array.from(new Set(matches));
+}
+
 const EMPTY = {
   title: '', company: '', location: '', salary: '',
   source_link: '', public_teaser: '', description: '', internal_description: '',
@@ -115,6 +123,11 @@ export default function JobsPage() {
             <FormField label="Applications close (optional)" type="datetime-local" value={form.closes_at} onChange={(e) => setForm({ ...form, closes_at: e.target.value })} />
             <FormField label="Source link" value={form.source_link} onChange={(e) => setForm({ ...form, source_link: e.target.value })} placeholder="https://…" required />
             <FormField as="textarea" label="Public teaser" value={form.public_teaser} onChange={(e) => setForm({ ...form, public_teaser: e.target.value })} helperText="One-line blurb shown on the jobs list." required />
+            {findContactLeaks(form.public_teaser).length > 0 && (
+              <div className="-mt-2 mb-4 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-700">
+                ⚠️ The teaser looks like it contains an email or link ({findContactLeaks(form.public_teaser).join(', ')}) — remove it so seekers apply through JobDeyEasy.
+              </div>
+            )}
             <RichTextEditor
               label="Full job description (public)"
               value={form.description}
@@ -122,6 +135,11 @@ export default function JobsPage() {
               helperText="Select text and use the buttons above (or Ctrl+B for bold) to format. Shown on the job's own public page."
               minHeight="min-h-[160px]"
             />
+            {findContactLeaks(form.description).length > 0 && (
+              <div className="-mt-2 mb-4 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-700">
+                ⚠️ This public description looks like it contains an email address or link ({findContactLeaks(form.description).join(', ')}). Don&apos;t expose the employer&apos;s contact here — move it to Source link or the internal notes below, so seekers apply through JobDeyEasy.
+              </div>
+            )}
             <FormField as="textarea" label="Internal description" value={form.internal_description} onChange={(e) => setForm({ ...form, internal_description: e.target.value })} helperText="Private notes for writing the application. Never shown publicly." required />
             <Button type="submit" disabled={saving} fullWidth className="mt-2">
               {saving ? 'Saving…' : editingId ? 'Update job posting' : 'Add job posting'}

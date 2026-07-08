@@ -23,6 +23,8 @@ export interface Profile {
   email: string;
   role: UserRole;
   can_post_jobs?: boolean;
+  can_post_blog?: boolean;
+  last_seen_at?: string | null;
   assigned_staff_id?: string | null;
   whatsapp_number: string | null;
   phone_number: string | null;
@@ -94,6 +96,7 @@ export interface Application {
   tailored_cv_url: string | null;
   tailored_cover_letter_url: string | null;
   apply_to_email_or_link: string | null;
+  apply_type?: 'email' | 'form' | null;
   why_picked: string[];
   status: ApplicationStatus;
   reviewed_by: string | null;
@@ -183,12 +186,27 @@ export interface TicketMessage {
 
 export interface Post {
   id: string;
+  slug?: string | null;
   title: string;
   hook: string | null;
   content: string;
   featured_image_url: string | null;
   published: boolean;
+  featured?: boolean;
+  views?: number;
   author_id: string | null;
   created_at: string;
   published_at: string | null;
+}
+
+export interface Testimonial {
+  id: string;
+  user_id: string | null;
+  application_id: string | null;
+  seeker_name: string | null;
+  job_title: string | null;
+  company: string | null;
+  message: string | null;
+  approved: boolean;
+  created_at: string;
 }

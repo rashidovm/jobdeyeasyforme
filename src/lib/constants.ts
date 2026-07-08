@@ -139,6 +139,14 @@ export const FAQS = [
     a: "No. Everything is delivered to your dashboard and your chosen channel (WhatsApp, email, or SMS). No app download required.",
   },
   {
+    q: "What if the job I'm applying to requires filling a form instead of sending an email?",
+    a: "No problem — some employers want an emailed application, others want a form filled on their own website. Either way, we prepare a reference document with your application: the exact subject line and email body to use if it's an email, or the exact answers to copy into each field if it's a form. You just follow it and submit.",
+  },
+  {
+    q: "What is the \u201Creference document\u201D you mention on my applications?",
+    a: "It's a short guide our team prepares for certain applications with more involved steps — for example, what to write in each box of an online form, or the precise subject line and message to use for an email. It's optional and only appears when an application needs it, so you always know exactly what to submit and where.",
+  },
+  {
     q: "What is the 'Founding 20' offer exactly?",
     a: "The first 20 people to sign up for the Starter plan in our launch month lock in the \u20A61,500/month rate for life, even when prices increase later.",
   },

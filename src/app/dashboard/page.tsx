@@ -10,6 +10,8 @@ import {
 import { Clock, Sparkles, FileCheck2, MessageSquare, Zap, Bell, Briefcase, Plus, CheckCircle2 as CheckC, Copy, BookOpen } from 'lucide-react';
 import Celebration from '@/components/ui/Celebration';
 import { prettyDate } from '@/lib/dates';
+import { countUnseen } from '@/lib/seen';
+import { touchPresence } from '@/lib/presence';
 import { supabase, buildWhatsappLink } from '@/lib/supabase';
 import { Profile, Subscription, Application, ClientMaterial, CvDeliverable, Message, Notification, JobPosting, Ticket, TicketMessage } from '@/types';
 import { STATUS_MAP, PLANS, TOPUP_PRICES } from '@/lib/constants';
@@ -42,6 +44,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Heartbeat: lets the team see this seeker is actively using their dashboard.
+  useEffect(() => {
+    touchPresence();
+    const t = setInterval(touchPresence, 3 * 60 * 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -100,7 +109,7 @@ export default function DashboardPage() {
         }
         setSubscription(activeSub);
 
-        const { data: jp } = await supabase.from('job_postings').select('*').eq('filled', false).order('created_at', { ascending: false });
+        const { data: jp } = await supabase.from('job_postings').select('*').eq('filled', false).eq('closed', false).order('created_at', { ascending: false });
         setPostings((jp as JobPosting[]) || []);
 
         const { data: appData, error: appErr } = await supabase
@@ -236,6 +245,19 @@ export default function DashboardPage() {
       .update({ heard_back: true, heard_back_at: new Date().toISOString(), needs_followup: false })
       .eq('id', appId);
     setCelebration({ title: 'They responded! 🎉', message: 'That\u2019s huge — an employer got back to you. Update us in chat with the details and we\u2019ll help you with the next step.' });
+
+    // Draft a testimonial for admin to review — never shown publicly until approved.
+    const app = applications.find((a) => a.id === appId);
+    if (profile) {
+      await supabase.from('testimonials').insert({
+        user_id: profile.id,
+        application_id: appId,
+        seeker_name: profile.full_name,
+        job_title: app?.job_postings?.title || app?.manual_job_title || null,
+        company: app?.job_postings?.company || app?.manual_company || null,
+        message: `Heard back from ${app?.job_postings?.company || app?.manual_company || 'the employer'} for the ${app?.job_postings?.title || app?.manual_job_title || 'role'} role!`,
+      });
+    }
     refreshApps();
   };
 
@@ -265,7 +287,23 @@ export default function DashboardPage() {
   const isPaidPending = !!subscription && subscription.tier !== 'free_trial' && subscription.status === 'pending';
   const daysLeft = subscription?.renews_at && subscription.tier !== 'free_trial'
     ? Math.max(0, Math.ceil((new Date(subscription.renews_at).getTime() - Date.now()) / 86400000)) : null;
-  const newJobsCount = postings.filter((j) => Date.now() - new Date(j.created_at || 0).getTime() < 7 * 24 * 3600 * 1000).length;
+  const openJobIds = postings.filter((j) => !j.filled && !j.closed).map((j) => j.id);
+  const [newJobsCount, setNewJobsCount] = useState(0);
+  const [newBlogCount, setNewBlogCount] = useState(0);
+  useEffect(() => {
+    if (!profile || openJobIds.length === 0) { setNewJobsCount(0); return; }
+    setNewJobsCount(countUnseen('jobs', profile.id, openJobIds));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, postings.length]);
+  useEffect(() => {
+    if (!profile) return;
+    (async () => {
+      const { data } = await supabase.from('posts').select('id').eq('published', true);
+      const ids = (data || []).map((p: { id: string }) => p.id);
+      if (ids.length) setNewBlogCount(countUnseen('posts', profile.id, ids));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
 
   const lastMsg = messages[messages.length - 1];
   const canReply = !!lastMsg && lastMsg.sender_role !== 'client';
@@ -325,6 +363,7 @@ export default function DashboardPage() {
           className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white"
         >
           <BookOpen className="h-4 w-4" /> Blog
+          {newBlogCount > 0 && <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[0.65rem] font-bold text-white">{newBlogCount} new</span>}
         </a>
 
         <a
@@ -444,18 +483,26 @@ export default function DashboardPage() {
                         {app.tailored_cv_url && <Button href={app.tailored_cv_url} variant="secondary" size="sm"><FileText className="h-4 w-4" /> Tailored CV</Button>}
                         {app.tailored_cover_letter_url && <Button href={app.tailored_cover_letter_url} variant="secondary" size="sm"><Mail className="h-4 w-4" /> Cover Letter</Button>}
                         {app.apply_to_email_or_link && (
-                          <Button href={app.apply_to_email_or_link.startsWith('http') ? app.apply_to_email_or_link : `mailto:${app.apply_to_email_or_link}`} size="sm">
-                            <Send className="h-4 w-4" /> Send your application
+                          <Button href={app.apply_type === 'form' ? app.apply_to_email_or_link : (app.apply_to_email_or_link.startsWith('http') ? app.apply_to_email_or_link : `mailto:${app.apply_to_email_or_link}`)} size="sm">
+                            <Send className="h-4 w-4" /> {app.apply_type === 'form' ? 'Open the application form' : 'Send your application'}
                           </Button>
                         )}
                       </div>
 
-                      {app.reference_doc_url && (
-                        <div className="mt-3">
-                          <Button href={app.reference_doc_url} variant="secondary" size="sm"><BookOpen className="h-4 w-4" /> Application guide</Button>
-                          <p className="mt-1.5 text-xs text-muted">Step-by-step instructions for this application — what to write, what to attach, and how to send it.</p>
+                      {app.reference_doc_url ? (
+                        <div className="mt-3 rounded-xl border border-gold/40 bg-gold-light/60 p-3.5">
+                          <Button href={app.reference_doc_url} variant="secondary" size="sm"><BookOpen className="h-4 w-4" /> Open application guide</Button>
+                          <p className="mt-1.5 text-xs text-muted">
+                            {app.apply_type === 'form'
+                              ? "Everything you need to fill the form is already arranged in this guide — just copy each answer across."
+                              : 'Everything is already arranged in this guide: the exact subject line, the email body, and what to attach. Just copy, paste, and send.'}
+                          </p>
                         </div>
-                      )}
+                      ) : app.apply_to_email_or_link ? (
+                        <p className="mt-3 text-xs text-muted">
+                          {app.apply_type === 'form' ? 'Fill the form with your details from your CV and cover letter above.' : 'Attach your CV and cover letter above, then send.'}
+                        </p>
+                      ) : null}
 
                       {/* Did you send it? */}
                       {!app.client_sent && (!app.remind_after || new Date(app.remind_after).getTime() < now) && (

@@ -17,7 +17,7 @@ export default function LatestPosts() {
     (async () => {
       const { data } = await supabase
         .from('posts')
-        .select('id, title, hook, featured_image_url, published_at, created_at, published, content, author_id')
+        .select('id, slug, title, hook, featured_image_url, published_at, created_at, published, author_id')
         .eq('published', true)
         .order('published_at', { ascending: false })
         .limit(3);
@@ -43,7 +43,7 @@ export default function LatestPosts() {
         <div className="mt-12 grid gap-5 md:grid-cols-3">
           {posts.map((p, i) => (
             <Reveal key={p.id} delay={i * 80}>
-              <Link href={`/blog/${p.id}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-soft transition-all hover:-translate-y-1 hover:shadow-card">
+              <Link href={`/blog/${p.slug || p.id}`} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-soft transition-all hover:-translate-y-1 hover:shadow-card">
                 {p.featured_image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={p.featured_image_url} alt={p.title} className="aspect-video w-full object-cover" />

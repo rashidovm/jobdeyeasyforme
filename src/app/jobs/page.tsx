@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { MapPin, Building2, Clock, ArrowRight, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { JobPosting } from '@/types';
+import { markSeen } from '@/lib/seen';
 import { prettyDate } from '@/lib/dates';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
@@ -37,8 +38,10 @@ export default function JobsBoardPage() {
         .select('id, title, company, location, salary, work_mode, public_teaser, closes_at, created_at, filled, closed')
         .eq('filled', false)
         .order('created_at', { ascending: false });
-      setJobs((data as JobPosting[]) || []);
+      const list = (data as JobPosting[]) || [];
+      setJobs(list);
       setLoading(false);
+      if (user) markSeen('jobs', user.id, list.filter((j) => !j.closed).map((j) => j.id));
     })();
   }, []);
 
