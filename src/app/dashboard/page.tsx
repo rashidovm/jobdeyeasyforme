@@ -203,6 +203,24 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id, applications]);
 
+  const [newJobsCount, setNewJobsCount] = useState(0);
+  const [newBlogCount, setNewBlogCount] = useState(0);
+  useEffect(() => {
+    const openIds = postings.filter((j) => !j.filled && !j.closed).map((j) => j.id);
+    if (!profile || openIds.length === 0) { setNewJobsCount(0); return; }
+    setNewJobsCount(countUnseen('jobs', profile.id, openIds));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, postings.length]);
+  useEffect(() => {
+    if (!profile) return;
+    (async () => {
+      const { data } = await supabase.from('posts').select('id').eq('published', true);
+      const ids = (data || []).map((p: { id: string }) => p.id);
+      if (ids.length) setNewBlogCount(countUnseen('posts', profile.id, ids));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
+
   const createTicket = async (subject: string, body: string) => {
     if (!profile) return;
     const { error: e } = await supabase.from('tickets').insert({ user_id: profile.id, subject, body });
@@ -288,22 +306,6 @@ export default function DashboardPage() {
   const daysLeft = subscription?.renews_at && subscription.tier !== 'free_trial'
     ? Math.max(0, Math.ceil((new Date(subscription.renews_at).getTime() - Date.now()) / 86400000)) : null;
   const openJobIds = postings.filter((j) => !j.filled && !j.closed).map((j) => j.id);
-  const [newJobsCount, setNewJobsCount] = useState(0);
-  const [newBlogCount, setNewBlogCount] = useState(0);
-  useEffect(() => {
-    if (!profile || openJobIds.length === 0) { setNewJobsCount(0); return; }
-    setNewJobsCount(countUnseen('jobs', profile.id, openJobIds));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id, postings.length]);
-  useEffect(() => {
-    if (!profile) return;
-    (async () => {
-      const { data } = await supabase.from('posts').select('id').eq('published', true);
-      const ids = (data || []).map((p: { id: string }) => p.id);
-      if (ids.length) setNewBlogCount(countUnseen('posts', profile.id, ids));
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id]);
 
   const lastMsg = messages[messages.length - 1];
   const canReply = !!lastMsg && lastMsg.sender_role !== 'client';
