@@ -12,9 +12,12 @@ import { prettyDate } from '@/lib/dates';
 export default function BlogPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
     (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setAuthed(!!user);
       const { data } = await supabase
         .from('posts')
         .select('id, title, hook, featured_image_url, published_at, created_at, published, content, author_id')
@@ -30,7 +33,9 @@ export default function BlogPage() {
       <header className="sticky top-0 z-40 border-b border-line bg-cream/85 backdrop-blur-md">
         <div className="container-tight flex h-16 items-center justify-between">
           <Logo />
-          <Button href="/" variant="ghost" size="sm">← Home</Button>
+          {authed
+            ? <Button href="/dashboard" variant="secondary" size="sm">← Back to dashboard</Button>
+            : <Button href="/" variant="ghost" size="sm">← Home</Button>}
         </div>
       </header>
 

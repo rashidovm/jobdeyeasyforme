@@ -207,11 +207,21 @@ export default function ClientDetailPage() {
   const setTier = async (tier: string) => {
     if (!sub) return;
     setBusy(true);
-    const lim = APPLICATION_LIMITS[tier] ?? 1;
-    const { error: e } = await supabase.from('subscriptions').update({ tier, applications_limit: lim, status: 'active' }).eq('id', sub.id);
+    const rank: Record<string, number> = { free_trial: 0, starter: 1, active_search: 2, unlimited_hunt: 3 };
+    const planApps = APPLICATION_LIMITS[tier] ?? 1;
+    const isUpgrade = (rank[tier] ?? 0) > (rank[sub.tier] ?? 0);
+    // Upgrades ADD the full new plan on top of what they already had
+    // (e.g. Free Trial 1 + Starter 3 = 4). They paid for the full plan.
+    const lim = isUpgrade ? sub.applications_limit + planApps : planApps;
+    const payload: Record<string, unknown> = { tier, applications_limit: lim, status: 'active' };
+    if (isUpgrade) payload.renews_at = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+    const { error: e } = await supabase.from('subscriptions').update(payload).eq('id', sub.id);
     setBusy(false);
     if (e) { setError(e.message); return; }
-    flash(`Moved to ${PLANS.find((p) => p.id === tier)?.name}.`); load();
+    flash(isUpgrade
+      ? `Upgraded to ${PLANS.find((p) => p.id === tier)?.name} — ${planApps} applications added (total ${lim}).`
+      : `Moved to ${PLANS.find((p) => p.id === tier)?.name}.`);
+    load();
   };
 
   const resetCycle = async () => {

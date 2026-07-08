@@ -32,9 +32,9 @@ export default function Hero() {
           </span>
 
           <h1 className="mt-7 text-[2.7rem] leading-[0.98] sm:text-[3.4rem] lg:text-[4.1rem]">
-            <span className="block overflow-hidden"><span className="display block animate-rise">We do the</span></span>
-            <span className="block overflow-hidden"><span className="display block animate-rise" style={{ animationDelay: '90ms' }}>hard part.</span></span>
-            <span className="block overflow-hidden">
+            <span className="block overflow-hidden pb-[0.14em] -mb-[0.14em]"><span className="display block animate-rise">We do the</span></span>
+            <span className="block overflow-hidden pb-[0.14em] -mb-[0.14em]"><span className="display block animate-rise" style={{ animationDelay: '90ms' }}>hard part.</span></span>
+            <span className="block overflow-hidden pb-[0.14em] -mb-[0.14em]">
               <span className="display block animate-rise" style={{ animationDelay: '180ms' }}>
                 You just hit <span className="font-display italic font-medium text-green">Send</span>.
               </span>

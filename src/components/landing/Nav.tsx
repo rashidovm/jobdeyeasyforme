@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Menu, X } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import Logo from '@/components/ui/Logo';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
@@ -17,6 +18,11 @@ const LINKS = [
 export default function Nav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setAuthed(!!data.user));
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -43,8 +49,14 @@ export default function Nav() {
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
-            <a href="/login" className="rounded-full px-3.5 py-2 text-sm font-semibold link-muted">Log in</a>
-            <Button href="/signup" size="sm">Start free trial</Button>
+            {authed ? (
+              <Button href="/dashboard" size="sm">My dashboard →</Button>
+            ) : (
+              <>
+                <a href="/login" className="rounded-full px-3.5 py-2 text-sm font-semibold link-muted">Log in</a>
+                <Button href="/signup" size="sm">Start free trial</Button>
+              </>
+            )}
           </div>
 
           <button
@@ -65,8 +77,14 @@ export default function Nav() {
                 {l.label}
               </a>
             ))}
-            <a href="/login" onClick={() => setOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-medium text-ink hover:bg-ink/5">Log in</a>
-            <div className="pt-2"><Button href="/signup" fullWidth>Start free trial</Button></div>
+            {authed ? (
+              <div className="pt-2"><Button href="/dashboard" fullWidth>My dashboard →</Button></div>
+            ) : (
+              <>
+                <a href="/login" onClick={() => setOpen(false)} className="rounded-xl px-3 py-2.5 text-sm font-medium text-ink hover:bg-ink/5">Log in</a>
+                <div className="pt-2"><Button href="/signup" fullWidth>Start free trial</Button></div>
+              </>
+            )}
           </div>
         </div>
       )}

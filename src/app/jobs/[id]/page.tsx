@@ -95,13 +95,7 @@ export default function JobDetailPage() {
               )}
             </div>
 
-            {authed ? (
-              <div className="mt-8 rounded-2xl border border-green/30 bg-green-light p-6 text-center">
-                <h2 className="text-xl font-extrabold text-green-dark">Want us to apply to this for you?</h2>
-                <p className="mx-auto mt-2 max-w-md text-sm text-green-dark">Message your team from your dashboard and we&apos;ll prepare a tailored application for this role.</p>
-                <div className="mt-5 flex justify-center"><Button href="/dashboard">← Back to dashboard</Button></div>
-              </div>
-            ) : (
+            {authed ? null : (
               <div className="mt-8 rounded-2xl border border-green/30 bg-green-light p-6 text-center">
                 <h2 className="text-xl font-extrabold">Want this job? Let us do the hard part.</h2>
                 <p className="mx-auto mt-2 max-w-md text-sm text-green-dark">We&apos;ll tailor your CV and cover letter to this exact role and hand you a ready-to-send email. You just hit Send.</p>

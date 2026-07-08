@@ -231,3 +231,17 @@ Run **`supabase_pass9_setup.sql`**. It covers: manual applications (job optional
 **Jobs:** Urgent badge (closes within 3 days), auto-Closed when the deadline passes, manual "Close applications" toggle, "Posted [date]" everywhere, and full-description **formatting** (paragraphs, `-` bullets, `**bold**`, `#`/`##` headings) rendered beautifully.
 
 **Blog:** admin editor (`/admin/blog`) with formatting + featured-image guidance (1200×675px 16:9, JPG/PNG, <400KB), public `/blog` (latest first) and article pages with share button, published date, back links, related posts, and a signup CTA. Latest 3 articles appear on the homepage; Blog is in the nav and footer.
+
+---
+
+## Pass 11 — Blog polish, auth-aware pages, follow-up countdowns, upgrade math, hero fix
+
+No new SQL — just redeploy.
+
+- **Blog formatting fixed:** single line breaks inside a paragraph are now kept exactly as typed (bold/headings no longer merge lines back together). Article body is **justified**; the date, title, hook, and share button are **centered** for an editorial look.
+- **Blog is auth-aware:** dashboard sidebar now has a **Blog** link; logged-in readers see "← Back to dashboard" (list + article) and **no signup CTA** under articles — just "Keep reading" related posts.
+- **Homepage is auth-aware:** logged-in visitors see **"My dashboard →"** in the nav instead of Log in / Start free trial.
+- **Job pages:** logged-in seekers no longer see any marketing block under a job.
+- **Follow-up countdowns:** after confirming "sent," the card shows a live **"⏱ Follow-up check-in in X"** countdown (and snoozed send-reminders show their countdown too). Ticks every minute.
+- **Upgrade math corrected:** upgrading ADDS the full new plan's applications on top of the current balance (Free Trial 1 + Starter 3 = **4 total**) and restarts the 30-day cycle — they paid for the full plan.
+- **Hero fix:** descenders (j, p) no longer clipped in the landing headline.

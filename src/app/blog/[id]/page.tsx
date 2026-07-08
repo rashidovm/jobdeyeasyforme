@@ -18,9 +18,12 @@ export default function ArticlePage() {
   const [related, setRelated] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
     (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setAuthed(!!user);
       const { data } = await supabase.from('posts').select('*').eq('id', id).eq('published', true).maybeSingle();
       setPost(data as Post);
       const { data: rel } = await supabase
@@ -50,7 +53,9 @@ export default function ArticlePage() {
           <Logo />
           <div className="flex gap-2">
             <Button href="/blog" variant="ghost" size="sm"><ArrowLeft className="h-4 w-4" /> All articles</Button>
-            <Button href="/" variant="ghost" size="sm">Home</Button>
+            {authed
+              ? <Button href="/dashboard" variant="secondary" size="sm">← Back to dashboard</Button>
+              : <Button href="/" variant="ghost" size="sm">Home</Button>}
           </div>
         </div>
       </header>
@@ -62,14 +67,16 @@ export default function ArticlePage() {
           <p className="text-muted">Article not found. <Link href="/blog" className="font-semibold text-green">Browse all articles</Link>.</p>
         ) : (
           <>
-            <p className="eyebrow">{prettyDate(post.published_at || post.created_at)}</p>
-            <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
-              <h1 className="display max-w-2xl text-4xl leading-[1.05] md:text-5xl">{post.title}</h1>
-              <button onClick={share} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold text-ink shadow-soft transition-colors hover:border-green hover:text-green">
-                {copied ? <><Check className="h-4 w-4" /> Copied</> : <><Share2 className="h-4 w-4" /> Share</>}
-              </button>
+            <div className="text-center">
+              <p className="text-[0.7rem] font-bold uppercase tracking-[0.24em] text-gold">{prettyDate(post.published_at || post.created_at)}</p>
+              <h1 className="display mx-auto mt-4 max-w-2xl text-4xl leading-[1.05] md:text-5xl">{post.title}</h1>
+              {post.hook && <p className="mx-auto mt-4 max-w-xl font-display text-xl italic text-muted">{post.hook}</p>}
+              <div className="mt-5 flex justify-center">
+                <button onClick={share} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold text-ink shadow-soft transition-colors hover:border-green hover:text-green">
+                  {copied ? <><Check className="h-4 w-4" /> Copied</> : <><Share2 className="h-4 w-4" /> Share article</>}
+                </button>
+              </div>
             </div>
-            {post.hook && <p className="mt-4 max-w-2xl font-display text-xl italic text-muted">{post.hook}</p>}
 
             {post.featured_image_url && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -77,14 +84,16 @@ export default function ArticlePage() {
             )}
 
             <div className="mt-10">
-              <RichText text={post.content} className="text-[1.02rem]" />
+              <RichText text={post.content} className="text-[1.02rem]" justify />
             </div>
 
+            {!authed && (
             <div className="mt-12 rounded-3xl border border-green/30 bg-green-light p-8 text-center">
               <h2 className="text-2xl">Ready to stop applying alone?</h2>
               <p className="mx-auto mt-2 max-w-md text-sm text-green-dark">We prepare your tailored CV, cover letter and a ready-to-send email. You just hit Send.</p>
               <div className="mt-5 flex justify-center"><Button href="/signup">Start free trial <ArrowRight className="h-4 w-4" /></Button></div>
             </div>
+            )}
 
             {related.length > 0 && (
               <div className="mt-14">

@@ -38,6 +38,24 @@ export default function DashboardPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [tab, setTab] = useState<Tab>('apps');
   const [celebration, setCelebration] = useState<{ title: string; message: string } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  const timeLeft = (iso?: string | null) => {
+    if (!iso) return null;
+    const ms = new Date(iso).getTime() - now;
+    if (ms <= 0) return null;
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    if (d > 0) return `${d} day${d === 1 ? '' : 's'} ${h}h`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
   const router = useRouter();
 
   useEffect(() => {
@@ -303,6 +321,13 @@ export default function DashboardPage() {
         </a>
 
         <a
+          href="/blog"
+          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+        >
+          <BookOpen className="h-4 w-4" /> Blog
+        </a>
+
+        <a
           href={buildWhatsappLink('Hi JobDeyEasy team!')}
           target="_blank"
           rel="noopener noreferrer"
@@ -433,7 +458,7 @@ export default function DashboardPage() {
                       )}
 
                       {/* Did you send it? */}
-                      {!app.client_sent && (!app.remind_after || new Date(app.remind_after) < new Date()) && (
+                      {!app.client_sent && (!app.remind_after || new Date(app.remind_after).getTime() < now) && (
                         <div className="mt-4 rounded-xl border border-gold/40 bg-gold-light p-4">
                           <p className="text-sm font-bold text-ink">Quick check-in — have you sent this application yet?</p>
                           <div className="mt-3 flex gap-2">
@@ -443,12 +468,12 @@ export default function DashboardPage() {
                           <p className="mt-2 text-xs text-muted">If not yet, no wahala — we&apos;ll gently remind you again in 12 hours.</p>
                         </div>
                       )}
-                      {!app.client_sent && app.remind_after && new Date(app.remind_after) >= new Date() && (
-                        <p className="mt-4 rounded-xl bg-cream px-3.5 py-2.5 text-xs text-muted">⏰ We&apos;ll check in again soon to see if you&apos;ve sent this one.</p>
+                      {!app.client_sent && app.remind_after && new Date(app.remind_after).getTime() >= now && (
+                        <p className="mt-4 rounded-xl bg-cream px-3.5 py-2.5 text-xs text-muted">⏰ We&apos;ll check in again in <strong className="text-ink">{timeLeft(app.remind_after)}</strong> to see if you&apos;ve sent this one.</p>
                       )}
 
                       {/* Have you heard back? */}
-                      {app.client_sent && !app.heard_back && app.heard_remind_after && new Date(app.heard_remind_after) < new Date() && (
+                      {app.client_sent && !app.heard_back && app.heard_remind_after && new Date(app.heard_remind_after).getTime() < now && (
                         <div className="mt-4 rounded-xl border border-green/30 bg-green-light p-4">
                           <p className="text-sm font-bold text-green-dark">It&apos;s been a few days — has {app.job_postings?.company || app.manual_company || 'the employer'} gotten back to you?</p>
                           <div className="mt-3 flex gap-2">
@@ -460,8 +485,11 @@ export default function DashboardPage() {
                       {app.client_sent && !app.heard_back && app.needs_followup && (
                         <p className="mt-4 rounded-xl bg-cream px-3.5 py-2.5 text-xs text-muted">📮 Noted — our team is preparing a follow-up email to nudge {app.job_postings?.company || app.manual_company || 'the employer'}. It&apos;ll appear here when ready.</p>
                       )}
-                      {app.client_sent && !app.heard_back && !app.needs_followup && app.heard_remind_after && new Date(app.heard_remind_after) >= new Date() && (
-                        <p className="mt-4 rounded-xl bg-cream px-3.5 py-2.5 text-xs text-muted">✅ Sent on {prettyDate(app.client_sent_at)} — we&apos;ll check in about a response in a couple of days.</p>
+                      {app.client_sent && !app.heard_back && !app.needs_followup && app.heard_remind_after && new Date(app.heard_remind_after).getTime() >= now && (
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-cream px-3.5 py-2.5">
+                          <p className="text-xs text-muted">✅ Sent on {prettyDate(app.client_sent_at)}</p>
+                          <p className="text-xs font-semibold text-green">⏱ Follow-up check-in in {timeLeft(app.heard_remind_after)}</p>
+                        </div>
                       )}
                       {app.heard_back && (
                         <p className="mt-4 rounded-xl bg-green-light px-3.5 py-2.5 text-xs font-semibold text-green-dark">🎉 Employer responded on {prettyDate(app.heard_back_at)} — keep us posted in chat!</p>

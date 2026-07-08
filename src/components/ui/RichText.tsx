@@ -1,9 +1,10 @@
 import React from 'react';
 
 /**
- * Lightweight formatter: blank lines = paragraphs, lines starting with
- * "-", "*" or "•" = bullets, "# " = heading, "## " = subheading,
- * **text** = bold. No HTML injection — plain text in, React out.
+ * Lightweight formatter: blank lines = new paragraphs, single line breaks
+ * are KEPT inside a paragraph, lines starting with "-", "*" or "•" = bullets,
+ * "# " = heading, "## " = subheading, **text** = bold.
+ * Plain text in, React out — no HTML injection.
  */
 
 function inline(text: string): React.ReactNode[] {
@@ -15,16 +16,27 @@ function inline(text: string): React.ReactNode[] {
   );
 }
 
-export default function RichText({ text, className = '' }: { text: string; className?: string }) {
+export default function RichText({ text, className = '', justify = false }: { text: string; className?: string; justify?: boolean }) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const blocks: React.ReactNode[] = [];
   let para: string[] = [];
   let list: string[] = [];
   let key = 0;
 
+  const pClass = `leading-relaxed text-muted ${justify ? 'text-justify' : ''}`;
+
   const flushPara = () => {
     if (para.length) {
-      blocks.push(<p key={key++} className="leading-relaxed text-muted">{inline(para.join(' '))}</p>);
+      blocks.push(
+        <p key={key++} className={pClass}>
+          {para.map((ln, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <br />}
+              {inline(ln)}
+            </React.Fragment>
+          ))}
+        </p>
+      );
       para = [];
     }
   };
