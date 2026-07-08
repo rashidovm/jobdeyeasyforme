@@ -109,7 +109,7 @@ export default function AdminDashboard() {
         ) : (
           <ul className="divide-y divide-line">
             {apps.slice(0, 12).map((app) => {
-              const s = STATUS_MAP[app.status];
+              const s = STATUS_MAP[app.status] ?? { label: app.status || 'Unknown', color: '#4B5563', bg: '#F3F4F6', icon: 'Hourglass' };
               const overdue = app.due_at && new Date(app.due_at) < new Date() &&
                 !['sent_to_client', 'client_applied', 'interview', 'offer', 'rejected'].includes(app.status);
               return (
